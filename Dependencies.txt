@@ -1,0 +1,9 @@
+﻿**run these commands to install packages and migrate databases**
+
+Install-Package Microsoft.EntityFrameworkCore.SqlServer -Version 8.0.10
+Install-Package Microsoft.EntityFrameworkCore.Tools -Version 8.0.10
+Install-Package Microsoft.AspNetCore.Authentication.JwtBearer -Version 8.0.10
+
+
+Add-Migrate
+Update-Database
