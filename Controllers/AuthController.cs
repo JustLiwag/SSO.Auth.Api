@@ -4,6 +4,7 @@ using SSO.Auth.Api.Data;
 using SSO.Auth.Api.DTOs;
 using SSO.Auth.Api.Models;
 using SSO.Auth.Api.Services;
+using Microsoft.AspNetCore.Authorization;
 
 [ApiController]
 [Route("api/auth")]
@@ -46,11 +47,11 @@ public class AuthController : ControllerBase
             a.LogDate.Date == DateTime.Today &&
             a.TimeIn != null);
 
-        if (!hasTimedIn)
-        {
-            LogAudit(request.Username, "LOGIN_FAILED", "No time-in today");
-            return Unauthorized("No time-in record found");
-        }
+        //if (!hasTimedIn)
+        //{
+        //    LogAudit(request.Username, "LOGIN_FAILED", "No time-in today");
+        //    return Unauthorized("No time-in record found");
+        //}
 
         LogAudit(request.Username, "LOGIN_SUCCESS", "Login successful");
 
@@ -76,5 +77,16 @@ public class AuthController : ControllerBase
             Timestamp = DateTime.Now
         });
         _context.SaveChanges();
+    }
+
+    [Authorize]
+    [HttpGet("me")]
+    public IActionResult Me()
+    {
+        return Ok(User.Claims.Select(c => new
+        {
+            c.Type,
+            c.Value
+        }));
     }
 }
