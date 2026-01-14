@@ -1,0 +1,81 @@
+@{
+    Layout = "_LoginLayout";
+}
+<link rel="stylesheet" href="wwwroot/css/site.css" asp-append-version="true" />
+
+<!-- Login Card -->
+<div class="card themed-shadow mx-auto mt-3" style="max-width: 400px;">
+    <div class="card-body text-center">
+        <h2 class="card-title mb-4"><b> PTAMIS | PVAO </b></h2>
+
+        <img src="@Url.Content("~/PTAMIS_logo - update-removebg.png")"
+             alt="Logo"
+             class="mb-3 themed-shadow"
+             style="width: 350px; height: auto; object-fit: cover;" />
+
+
+        <form method="post" asp-controller="Login" asp-action="Login" autocomplete="off">
+            @Html.AntiForgeryToken()
+            <div class="mb-3 text-start fs-5">
+                <label class="form-label"><b>Employee ID</b></label>
+                <input type="text" name="employeeID" class="form-control" autocomplete="new-username" required />
+            </div>
+            <div class="mb-3 text-start fs-5">
+                <label class="form-label"><b>Password</b></label>
+                <div class="input-group">
+                    <input type="password" name="employeePass" id="passwordField" class="form-control" autocomplete="new-password" required />
+                    <button type="button" class="btn btn-outline-secondary" id="togglePassword" tabindex="-1">
+                        <i class="bi bi-eye-slash" id="passwordIcon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-green w-100"><b>LOGIN</b></button>
+        </form>
+
+        @if (ViewBag.ErrorMessage != null)
+        {
+        <div class="alert alert-danger mt-3" role="alert">
+            @ViewBag.ErrorMessage
+        </div>
+        }
+    </div>
+</div>
+
+@* @using (Html.BeginForm("HashExistingPasswords", "Login", FormMethod.Post))
+    {
+        @Html.AntiForgeryToken()
+        <button type="submit" class="btn btn-danger"
+                onclick="return confirm('This will encrypt ALL plaintext passwords. Continue?')">
+            Encrypt Passwords
+        </button>
+    } *@
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const togglePassword = document.getElementById("togglePassword");
+            const passwordField = document.getElementById("passwordField");
+            const passwordIcon = document.getElementById("passwordIcon");
+
+            togglePassword.addEventListener("mousedown", function () {
+                passwordField.type = "text";
+                passwordIcon.classList.replace("bi-eye-slash", "bi-eye");
+            });
+
+            togglePassword.addEventListener("mouseup", function () {
+                passwordField.type = "password";
+                passwordIcon.classList.replace("bi-eye", "bi-eye-slash");
+            });
+
+            togglePassword.addEventListener("mouseleave", function () {
+                passwordField.type = "password";
+                passwordIcon.classList.replace("bi-eye", "bi-eye-slash");
+            });
+
+            document.querySelector("form")?.addEventListener("submit", function () {
+                showLoader?.();
+            });
+        });
+    </script>
+}

@@ -1,0 +1,105 @@
+/* ================================
+   Global
+================================ */
+body {
+    background: linear-gradient(135deg, #f4f6f9, #e9eef3);
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* ================================
+   Card Styling
+================================ */
+.card {
+    border-radius: 12px;
+    border: none;
+    background-color: #ffffff;
+}
+
+.card-title {
+    color: #1f2937;
+    letter-spacing: 0.5px;
+}
+
+/* Reusable shadow theme */
+.themed-shadow {
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+/* ================================
+   Logo
+================================ */
+.card-body img {
+    max-width: 100%;
+    border-radius: 8px;
+}
+
+/* ================================
+   Form Elements
+================================ */
+.form-label {
+    color: #374151;
+}
+
+.form-control {
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    padding: 10px 12px;
+    font-size: 1rem;
+}
+
+    .form-control:focus {
+        border-color: #198754;
+        box-shadow: 0 0 0 0.15rem rgba(25, 135, 84, 0.25);
+    }
+
+/* Input group button (eye icon) */
+.input-group .btn {
+    border-radius: 0 8px 8px 0;
+}
+
+    .input-group .btn:focus {
+        box-shadow: none;
+    }
+
+/* ================================
+   Buttons
+================================ */
+.btn-green {
+    background-color: #198754;
+    color: #ffffff;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 1.05rem;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+    .btn-green:hover {
+        background-color: #157347;
+        color: #ffffff;
+    }
+
+    .btn-green:active {
+        transform: scale(0.98);
+    }
+
+/* ================================
+   Alerts
+================================ */
+.alert {
+    border-radius: 8px;
+    font-size: 0.95rem;
+}
+
+/* ================================
+   Responsive Adjustments
+================================ */
+@media (max-width: 576px) {
+    .card {
+        margin-left: 1rem;
+        margin-right: 1rem;
+    }
+
+    .card-title {
+        font-size: 1.4rem;
+    }
+}
