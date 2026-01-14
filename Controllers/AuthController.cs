@@ -36,11 +36,12 @@ public class AuthController : ControllerBase
         var employee = await _context.Employees
             .FirstOrDefaultAsync(e => e.EmployeeId == user.EmployeeId);
 
-        if (employee!.DateOfSeparation != null)
+        if (employee.DateOfSeparation != null && employee.DateOfSeparation <= DateTime.Today)
         {
             LogAudit(request.Username, "LOGIN_FAILED", "Employee separated");
             return Unauthorized("Employee is no longer active");
         }
+
 
         bool hasTimedIn = await _context.Attendance.AnyAsync(a =>
             a.EmployeeId == employee.EmployeeId &&
