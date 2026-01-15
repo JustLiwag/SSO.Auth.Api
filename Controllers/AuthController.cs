@@ -24,47 +24,60 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginRequest request)
     {
-        var user = await _context.Users
-            .FirstOrDefaultAsync(u => u.Username == request.Username);
-
-        if (user == null || user.PasswordHash != request.Password)
+        try
         {
-            LogAudit(request.Username, "LOGIN_FAILED", "Invalid credentials");
-            return Unauthorized("Invalid credentials");
+            var user = await _context.Users
+    .FirstOrDefaultAsync(u => u.Username == request.Username);
+
+            if (user == null || user.PasswordHash != request.Password)
+            {
+                LogAudit(request.Username, "LOGIN_FAILED", "Invalid credentials");
+                return Unauthorized("Invalid credentials");
+            }
+
+            var employee = await _context.Employees
+        .FirstOrDefaultAsync(e => e.EmployeeId == user.EmployeeId);
+
+            if (employee == null)
+            {
+                LogAudit(request.Username, "LOGIN_FAILED", "Employee record missing");
+                return Unauthorized("Employee record not found");
+            }
+
+            if (employee.DateOfSeparation != null)
+            {
+                LogAudit(request.Username, "LOGIN_FAILED", "Employee separated");
+                return Unauthorized("Employee is no longer active");
+            }
+
+
+            bool hasTimedIn = await _context.Attendance.AnyAsync(a =>
+                a.EmployeeId == employee.EmployeeId &&
+                a.LogDate.Date == DateTime.Today &&
+                a.TimeIn != null);
+
+            //if (!hasTimedIn)
+            //{
+            //    LogAudit(request.Username, "LOGIN_FAILED", "No time-in today");
+            //    return Unauthorized("No time-in record found");
+            //}
+
+            LogAudit(request.Username, "LOGIN_SUCCESS", "Login successful");
+
+            var token = _jwtService.GenerateToken(user, employee);
+
+            return Ok(new LoginResponse
+            {
+                Token = token,
+                EmployeeNo = employee.EmployeeNo,
+                FullName = employee.FullName,
+                Division = employee.Division
+            });
         }
-
-        var employee = await _context.Employees
-            .FirstOrDefaultAsync(e => e.EmployeeId == user.EmployeeId);
-
-        if (employee!.DateOfSeparation != null)
+        catch (Exception ex)
         {
-            LogAudit(request.Username, "LOGIN_FAILED", "Employee separated");
-            return Unauthorized("Employee is no longer active");
+            return StatusCode(500, ex.Message);
         }
-
-        bool hasTimedIn = await _context.Attendance.AnyAsync(a =>
-            a.EmployeeId == employee.EmployeeId &&
-            a.LogDate.Date == DateTime.Today &&
-            a.TimeIn != null);
-
-        //if (!hasTimedIn)
-        //{
-        //    LogAudit(request.Username, "LOGIN_FAILED", "No time-in today");
-        //    return Unauthorized("No time-in record found");
-        //}
-
-        LogAudit(request.Username, "LOGIN_SUCCESS", "Login successful");
-
-        var token = _jwtService.GenerateToken(user, employee);
-
-        return Ok(new
-        {
-            token,
-            employee.EmployeeNo,
-            employee.FullName,
-            employee.Division
-        });
-
     }
 
     private void LogAudit(string username, string action, string reason)
