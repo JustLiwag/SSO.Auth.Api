@@ -25,7 +25,9 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Login(LoginRequest request)
     {
         var user = await _context.Users
-            .FirstOrDefaultAsync(u => u.Username == request.Username);
+    .FirstOrDefaultAsync(u =>
+        EF.Functions.Collate(u.Username, "Latin1_General_CS_AS") == request.Username);
+
 
         if (user == null || user.PasswordHash != request.Password)
         {
@@ -48,7 +50,7 @@ public class AuthController : ControllerBase
 
         if (!userEntity.IsActive)
         {
-            LogAudit(request.Username, "LOGIN_FAILED", "User is inactive / separated");
+            LogAudit(request.Username, "LOGIN_FAILED", "User is inactive");
             return Unauthorized("Employee is no longer active");
         }
 
