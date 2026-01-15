@@ -39,14 +39,23 @@ public class AuthController : ControllerBase
         if (employee.DateOfSeparation != null && employee.DateOfSeparation <= DateTime.Today)
         {
             LogAudit(request.Username, "LOGIN_FAILED", "Employee separated");
+            return Unauthorized("Employee is separated already");
+        }
+
+        //for IsActive column in DB can be either this or Date of Separation
+        var userEntity = await _context.Users
+        .FirstOrDefaultAsync(u => u.UserId == user.UserId);
+
+        if (!userEntity.IsActive)
+        {
+            LogAudit(request.Username, "LOGIN_FAILED", "User is inactive / separated");
             return Unauthorized("Employee is no longer active");
         }
 
-
-        bool hasTimedIn = await _context.Attendance.AnyAsync(a =>
-            a.EmployeeId == employee.EmployeeId &&
-            a.LogDate.Date == DateTime.Today &&
-            a.TimeIn != null);
+        //bool hasTimedIn = await _context.Attendance.AnyAsync(a =>
+        //    a.EmployeeId == employee.EmployeeId &&
+        //    a.LogDate.Date == DateTime.Today &&
+        //    a.TimeIn != null);
 
         //if (!hasTimedIn)
         //{
