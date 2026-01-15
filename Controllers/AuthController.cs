@@ -12,12 +12,12 @@ public class AuthController : ControllerBase
 {
     private readonly AppDbContext _context;
 
-    private readonly JwtService _jwtService;
+   
 
-    public AuthController(AppDbContext context, JwtService jwtService)
+    public AuthController(AppDbContext context)
     {
         _context = context;
-        _jwtService = jwtService;
+        
     }
 
 
@@ -64,11 +64,11 @@ public class AuthController : ControllerBase
 
             LogAudit(request.Username, "LOGIN_SUCCESS", "Login successful");
 
-            var token = _jwtService.GenerateToken(user, employee);
+            
 
             return Ok(new LoginResponse
             {
-                Token = token,
+                Token = "TEST-TOKEN",
                 EmployeeNo = employee.EmployeeNo,
                 FullName = employee.FullName,
                 Division = employee.Division
