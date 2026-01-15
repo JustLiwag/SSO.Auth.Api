@@ -54,16 +54,27 @@ public class AuthController : ControllerBase
             return Unauthorized("Employee is no longer active");
         }
 
+        var today = DateTime.Today;
+        var tomorrow = today.AddDays(1);
+
+        bool hasTimedIn = await _context.Attendance.AnyAsync(a =>
+            a.EmployeeId == employee.EmployeeId &&
+            a.TimeIn.HasValue &&
+            a.TimeIn.Value >= today &&  
+            a.TimeIn.Value < tomorrow    
+        );
+
+
         //bool hasTimedIn = await _context.Attendance.AnyAsync(a =>
         //    a.EmployeeId == employee.EmployeeId &&
         //    a.LogDate.Date == DateTime.Today &&
         //    a.TimeIn != null);
 
-        //if (!hasTimedIn)
-        //{
-        //    LogAudit(request.Username, "LOGIN_FAILED", "No time-in today");
-        //    return Unauthorized("No time-in record found");
-        //}
+        if (!hasTimedIn)
+        {
+            LogAudit(request.Username, "LOGIN_FAILED", "No time-in today");
+            return Unauthorized("No time-in record found");
+        }
 
         LogAudit(request.Username, "LOGIN_SUCCESS", "Login successful");
 
