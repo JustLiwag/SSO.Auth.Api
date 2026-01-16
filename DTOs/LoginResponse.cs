@@ -2,10 +2,15 @@
 {
     public class LoginResponse
     {
-        public string Token { get; set; } = string.Empty;
-        public string EmployeeNo { get; set; } = string.Empty;
-        public string FullName { get; set; } = string.Empty;
-        public string Division { get; set; } = string.Empty;
+        public string Token { get; set; }
+
+        // IMPORTANT: This is what VAMS will use
+        public string EmployeeId { get; set; }
+
+        public string EmployeeNo { get; set; }
+        public string FullName { get; set; }
+        public string Division { get; set; }
     }
+
 
 }

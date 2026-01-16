@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using SSO.Auth.Api.Data;
 using SSO.Auth.Api.DTOs;
 using SSO.Auth.Api.Models;
-using SSO.Auth.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 
 [ApiController]
@@ -12,12 +11,10 @@ public class AuthController : ControllerBase
 {
     private readonly AppDbContext _context;
 
-    private readonly JwtService _jwtService;
-
-    public AuthController(AppDbContext context, JwtService jwtService)
+    public AuthController(AppDbContext context)
     {
         _context = context;
-        _jwtService = jwtService;
+        
     }
 
 
@@ -27,7 +24,7 @@ public class AuthController : ControllerBase
         try
         {
             var user = await _context.Users
-    .FirstOrDefaultAsync(u => u.Username == request.Username);
+    .FirstOrDefaultAsync(u => EF.Functions.Collate(u.Username, "Latin1_General_CS_AS") == request.Username);
 
             if (user == null || user.PasswordHash != request.Password)
             {
@@ -35,26 +32,43 @@ public class AuthController : ControllerBase
                 return Unauthorized("Invalid credentials");
             }
 
-            var employee = await _context.Employees
-        .FirstOrDefaultAsync(e => e.EmployeeId == user.EmployeeId);
+            var personnel = await _context.PersonnelDivisionDetails
+    .FirstOrDefaultAsync(p => p.employee_id == user.EmployeeId.ToString());
 
-            if (employee == null)
+            if (personnel == null)
             {
-                LogAudit(request.Username, "LOGIN_FAILED", "Employee record missing");
+                LogAudit(request.Username, "LOGIN_FAILED", "Personnel record missing");
                 return Unauthorized("Employee record not found");
             }
 
-            if (employee.DateOfSeparation != null)
+            if (personnel.separation_date != null &&
+    personnel.separation_date <= DateTime.Today)
             {
                 LogAudit(request.Username, "LOGIN_FAILED", "Employee separated");
                 return Unauthorized("Employee is no longer active");
             }
 
 
+            //for IsActive column in DB can be either this or Date of Separation
+            var userEntity = await _context.Users
+            .FirstOrDefaultAsync(u => u.UserId == user.UserId);
+
+            if (!userEntity.IsActive)
+            {
+                LogAudit(request.Username, "LOGIN_FAILED", "User is inactive");
+                return Unauthorized("Employee is no longer active");
+            }
+
+
+            var today = DateTime.Today;
+            var tomorrow = today.AddDays(1);
+
             bool hasTimedIn = await _context.Attendance.AnyAsync(a =>
-                a.EmployeeId == employee.EmployeeId &&
-                a.LogDate.Date == DateTime.Today &&
-                a.TimeIn != null);
+                a.EmployeeId.ToString() == user.EmployeeId &&
+                a.TimeIn.HasValue &&
+                a.TimeIn.Value >= today &&
+                a.TimeIn.Value < tomorrow
+            );
 
             //if (!hasTimedIn)
             //{
@@ -64,15 +78,18 @@ public class AuthController : ControllerBase
 
             LogAudit(request.Username, "LOGIN_SUCCESS", "Login successful");
 
-            var token = _jwtService.GenerateToken(user, employee);
+
 
             return Ok(new LoginResponse
             {
-                Token = token,
-                EmployeeNo = employee.EmployeeNo,
-                FullName = employee.FullName,
-                Division = employee.Division
+                Token = "TEST-TOKEN", // temporary
+                EmployeeId = personnel.employee_id, // ✅ THIS IS THE 
+                EmployeeNo = personnel.employee_id.ToString(),
+                FullName = $"{personnel.given_name} {personnel.surname}",
+                Division = personnel.division_name
             });
+
+
         }
         catch (Exception ex)
         {
@@ -96,10 +113,15 @@ public class AuthController : ControllerBase
     [HttpGet("me")]
     public IActionResult Me()
     {
+        // NOTE:
+        // Claims will be populated by IdentityServer later.
+        // This endpoint is already correct and does not need changes now.
+
         return Ok(User.Claims.Select(c => new
         {
             c.Type,
             c.Value
         }));
     }
+
 }
