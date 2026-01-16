@@ -29,8 +29,9 @@ namespace SSO.Auth.Api.Identity
                 return;
             }
 
+            var employeeId = int.TryParse(user.EmployeeId, out var parsedId) ? parsedId : 0;
             var employee = await _context.Employees
-                .FirstOrDefaultAsync(e => e.EmployeeId == user.EmployeeId);
+                .FirstOrDefaultAsync(e => e.EmployeeId == employeeId);
 
             if (employee == null || employee.DateOfSeparation != null)
             {

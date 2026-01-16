@@ -32,20 +32,22 @@ public class AuthController : ControllerBase
                 return Unauthorized("Invalid credentials");
             }
 
-            var employee = await _context.Employees
-        .FirstOrDefaultAsync(e => e.EmployeeId == user.EmployeeId);
+            var personnel = await _context.PersonnelDivisionDetails
+    .FirstOrDefaultAsync(p => p.employee_id == user.EmployeeId.ToString());
 
-            if (employee == null)
+            if (personnel == null)
             {
-                LogAudit(request.Username, "LOGIN_FAILED", "Employee record missing");
+                LogAudit(request.Username, "LOGIN_FAILED", "Personnel record missing");
                 return Unauthorized("Employee record not found");
             }
 
-            if (employee.DateOfSeparation != null && employee.DateOfSeparation <= DateTime.Today)
+            if (personnel.separation_date != null &&
+    personnel.separation_date <= DateTime.Today)
             {
                 LogAudit(request.Username, "LOGIN_FAILED", "Employee separated");
                 return Unauthorized("Employee is no longer active");
             }
+
 
             //for IsActive column in DB can be either this or Date of Separation
             var userEntity = await _context.Users
@@ -62,7 +64,7 @@ public class AuthController : ControllerBase
             var tomorrow = today.AddDays(1);
 
             bool hasTimedIn = await _context.Attendance.AnyAsync(a =>
-                a.EmployeeId == employee.EmployeeId &&
+                a.EmployeeId.ToString() == user.EmployeeId &&
                 a.TimeIn.HasValue &&
                 a.TimeIn.Value >= today &&
                 a.TimeIn.Value < tomorrow
@@ -76,15 +78,18 @@ public class AuthController : ControllerBase
 
             LogAudit(request.Username, "LOGIN_SUCCESS", "Login successful");
 
-            
+
 
             return Ok(new LoginResponse
             {
-                Token = "TEST-TOKEN",
-                EmployeeNo = employee.EmployeeNo,
-                FullName = employee.FullName,
-                Division = employee.Division
+                Token = "TEST-TOKEN", // temporary
+                EmployeeId = personnel.employee_id, // ✅ THIS IS THE 
+                EmployeeNo = personnel.employee_id.ToString(),
+                FullName = $"{personnel.given_name} {personnel.surname}",
+                Division = personnel.division_name
             });
+
+
         }
         catch (Exception ex)
         {
@@ -108,10 +113,15 @@ public class AuthController : ControllerBase
     [HttpGet("me")]
     public IActionResult Me()
     {
+        // NOTE:
+        // Claims will be populated by IdentityServer later.
+        // This endpoint is already correct and does not need changes now.
+
         return Ok(User.Claims.Select(c => new
         {
             c.Type,
             c.Value
         }));
     }
+
 }

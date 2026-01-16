@@ -3,7 +3,6 @@ using Duende.IdentityServer.Models;
 using Duende.IdentityServer.Validation;
 using Microsoft.EntityFrameworkCore;
 using SSO.Auth.Api.Data;
-using SSO.Auth.Api.Services;
 using SSO.Auth.Api.Identity;
 
 
