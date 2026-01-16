@@ -11,7 +11,6 @@ using Microsoft.AspNetCore.Authorization;
 public class AuthController : ControllerBase
 {
     private readonly AppDbContext _context;
-
     private readonly JwtService _jwtService;
 
     public AuthController(AppDbContext context, JwtService jwtService)
@@ -20,18 +19,60 @@ public class AuthController : ControllerBase
         _jwtService = jwtService;
     }
 
-
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginRequest request)
     {
         var user = await _context.Users
-    .FirstOrDefaultAsync(u =>
-        EF.Functions.Collate(u.Username, "Latin1_General_CS_AS") == request.Username);
+            .FirstOrDefaultAsync(u =>
+                EF.Functions.Collate(u.Username, "Latin1_General_CS_AS") == request.Username);
 
-
-        if (user == null || user.PasswordHash != request.Password)
+        // USER NOT FOUND
+        if (user == null)
         {
-            LogAudit(request.Username, "LOGIN_FAILED", "Invalid credentials");
+            LogAudit(request.Username, "LOGIN_FAILED", "INVALID_CREDENTIALS");
+            return Unauthorized("Invalid credentials");
+        }
+
+        // 🔒 LOCKOUT CHECK
+        if (user.LockoutUntil != null && user.LockoutUntil > DateTime.Now)
+        {
+            var remainingMinutes =
+                (int)(user.LockoutUntil.Value - DateTime.Now).TotalMinutes;
+
+            LogAudit(request.Username, "LOGIN_FAILED", "ACCOUNT_LOCKED");
+            return Unauthorized($"Account locked. Try again in {remainingMinutes} minute(s).");
+        }
+
+        // PASSWORD CHECK (unchanged logic)
+        bool validPassword = user.PasswordHash == request.Password;
+
+        if (!validPassword)
+        {
+            LogAudit(request.Username, "LOGIN_FAILED", "INVALID_CREDENTIALS");
+
+            // 🔍 CHECK LAST 5 ATTEMPTS
+            var lastAttempts = await _context.AuditLogs
+                .Where(a =>
+                    a.Username == request.Username &&
+                    (a.Action == "LOGIN_FAILED" || a.Action == "LOGIN_SUCCESS"))
+                .OrderByDescending(a => a.Timestamp)
+                .Take(5)
+                .ToListAsync();
+
+            bool shouldLock =
+                lastAttempts.Count == 5 &&
+                lastAttempts.All(a =>
+                    a.Action == "LOGIN_FAILED" &&
+                    a.Reason == "INVALID_CREDENTIALS");
+
+            if (shouldLock)
+            {
+                user.LockoutUntil = DateTime.Now.AddMinutes(30);
+                await _context.SaveChangesAsync();
+
+                return Unauthorized("Account locked for 30 minutes.");
+            }
+
             return Unauthorized("Invalid credentials");
         }
 
@@ -40,17 +81,17 @@ public class AuthController : ControllerBase
 
         if (employee.DateOfSeparation != null && employee.DateOfSeparation <= DateTime.Today)
         {
-            LogAudit(request.Username, "LOGIN_FAILED", "Employee separated");
+            LogAudit(request.Username, "LOGIN_FAILED", "EMPLOYEE_SEPARATED");
             return Unauthorized("Employee is separated already");
         }
 
-        //for IsActive column in DB can be either this or Date of Separation
+        // IsActive check (unchanged)
         var userEntity = await _context.Users
-        .FirstOrDefaultAsync(u => u.UserId == user.UserId);
+            .FirstOrDefaultAsync(u => u.UserId == user.UserId);
 
         if (!userEntity.IsActive)
         {
-            LogAudit(request.Username, "LOGIN_FAILED", "User is inactive");
+            LogAudit(request.Username, "LOGIN_FAILED", "USER_INACTIVE");
             return Unauthorized("Employee is no longer active");
         }
 
@@ -60,23 +101,21 @@ public class AuthController : ControllerBase
         bool hasTimedIn = await _context.Attendance.AnyAsync(a =>
             a.EmployeeId == employee.EmployeeId &&
             a.TimeIn.HasValue &&
-            a.TimeIn.Value >= today &&  
-            a.TimeIn.Value < tomorrow    
+            a.TimeIn.Value >= today &&
+            a.TimeIn.Value < tomorrow
         );
-
-
-        //bool hasTimedIn = await _context.Attendance.AnyAsync(a =>
-        //    a.EmployeeId == employee.EmployeeId &&
-        //    a.LogDate.Date == DateTime.Today &&
-        //    a.TimeIn != null);
 
         if (!hasTimedIn)
         {
-            LogAudit(request.Username, "LOGIN_FAILED", "No time-in today");
+            LogAudit(request.Username, "LOGIN_FAILED", "NO_TIME_IN");
             return Unauthorized("No time-in record found");
         }
 
-        LogAudit(request.Username, "LOGIN_SUCCESS", "Login successful");
+        // ✅ SUCCESS — reset lock
+        user.LockoutUntil = null;
+        await _context.SaveChangesAsync();
+
+        LogAudit(request.Username, "LOGIN_SUCCESS", "Successful Login");
 
         var token = _jwtService.GenerateToken(user, employee);
 
@@ -87,7 +126,6 @@ public class AuthController : ControllerBase
             employee.FullName,
             employee.Division
         });
-
     }
 
     private void LogAudit(string username, string action, string reason)

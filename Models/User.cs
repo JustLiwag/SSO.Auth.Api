@@ -7,6 +7,8 @@
         public string PasswordHash { get; set; } = null!;
         public bool IsActive { get; set; }
         public int EmployeeId { get; set; }
+
+        public DateTime? LockoutUntil { get; set; }
     }
 
 }
