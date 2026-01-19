@@ -5,6 +5,9 @@ using System.Text.Json;
 
 namespace SSO.Auth.Api.Controllers
 {
+
+    /// Temporary controller to allow testing IdentityServer token issuance via Swagger/UI.
+    /// Intended for manual testing only—remove or secure in production.
     [ApiController]
     [Route("api/test")]
     public class TokenTestController : ControllerBase
@@ -16,12 +19,13 @@ namespace SSO.Auth.Api.Controllers
             _httpClientFactory = httpClientFactory;
         }
 
-        /// <summary>
-        /// Temporary endpoint to test IdentityServer token issuance via Swagger.
-        /// </summary>
+
+        /// Request an access token using Resource Owner Password grant.
+        /// This method forwards form-encoded parameters to the IdentityServer token endpoint.
+
         /// <param name="username">User login</param>
         /// <param name="password">User password</param>
-        /// <returns>Access token JSON</returns>
+        /// <returns>Raw JSON response returned by IdentityServer token endpoint</returns>
         [HttpPost("get-token")]
         public async Task<IActionResult> GetToken([FromForm] string username, [FromForm] string password)
         {
@@ -45,6 +49,7 @@ namespace SSO.Auth.Api.Controllers
 
             var json = await response.Content.ReadAsStringAsync();
 
+            // Return token response as JSON to simplify testing via Swagger.
             return Content(json, "application/json");
         }
     }
