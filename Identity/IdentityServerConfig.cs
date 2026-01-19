@@ -1,54 +1,63 @@
 ﻿using Duende.IdentityServer.Models;
+
 namespace SSO.Auth.Api.Identity
 {
-
+    /// Static configuration for IdentityServer used for development/demo scenarios.
+    /// Contains in-memory client, scope and identity resource definitions.
+    /// Replace with persisted stores for production scenarios.
     public static class IdentityServerConfig
     {
         // ===========================
         // CLIENTS (HRIS, PAYROLL, ETC)
         // ===========================
+        /// In-memory client definitions. Example: an HRIS client that uses the
+        /// Resource Owner Password grant to obtain tokens.
         public static IEnumerable<Client> Clients =>
             new List<Client>
             {
-            new Client
-            {
-                ClientId = "hris_client",
-                ClientName = "HRIS System",
-
-                AllowedGrantTypes = GrantTypes.ResourceOwnerPassword,
-
-                ClientSecrets =
+                new Client
                 {
-                    new Secret("hris_secret".Sha256())
-                },
+                    ClientId = "hris_client",
+                    ClientName = "HRIS System",
 
-                AllowedScopes =
-                {
-                    "openid",
-                    "profile",
-                    "sso_api"
+                    // Resource Owner Password grant - not recommended for public apps.
+                    AllowedGrantTypes = GrantTypes.ResourceOwnerPassword,
+
+                    ClientSecrets =
+                    {
+                        // Keep secrets out of source in production (use secret store)
+                        new Secret("hris_secret".Sha256())
+                    },
+
+                    // Scopes requested by the client
+                    AllowedScopes =
+                    {
+                        "openid",
+                        "profile",
+                        "sso_api"
+                    }
                 }
-            }
             };
 
         // ===========================
         // API SCOPES
         // ===========================
+        /// API scopes represent protected APIs that clients can request access to.
         public static IEnumerable<ApiScope> ApiScopes =>
             new List<ApiScope>
             {
-            new ApiScope("sso_api", "SSO Protected API")
+                new ApiScope("sso_api", "SSO Protected API")
             };
 
         // ===========================
         // IDENTITY RESOURCES
         // ===========================
+        /// Standard OpenID Connect identity scopes exposed to clients.
         public static IEnumerable<IdentityResource> IdentityResources =>
             new List<IdentityResource>
             {
-            new IdentityResources.OpenId(),
-            new IdentityResources.Profile()
+                new IdentityResources.OpenId(),
+                new IdentityResources.Profile()
             };
     }
-
 }
