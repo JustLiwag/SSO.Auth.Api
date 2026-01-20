@@ -15,10 +15,11 @@ namespace SSO.Auth.Api.Data
             : base(options) { }
 
         // DbSets map to database tables created by migrations.
-        public DbSet<User> Users => Set<User>();
-        public DbSet<Employee> Employees => Set<Employee>();
-        public DbSet<Attendance> Attendance => Set<Attendance>();
-        public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+        public DbSet<User> Users { get; set; }
+        public DbSet<Employee> Employees { get; set; }
+        public DbSet<Attendance> Attendance { get; set; }
+        public DbSet<AuditLog> AuditLogs { get; set; }
+
 
         // This DbSet maps to a database view (vw_PersonnelDivisionDetails).
         // It is configured as keyless in OnModelCreating.

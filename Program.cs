@@ -72,10 +72,13 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseRouting();
 app.UseHttpsRedirection();
 app.UseIdentityServer();   // Adds IdentityServer endpoints (/connect/token, etc.)
 app.UseAuthentication();   // Enables authentication middleware
 app.UseAuthorization();    // Enables authorization middleware
 
-app.MapControllers();
+app.UseEndpoints(endpoints => {
+    endpoints.MapControllers();
+});
 app.Run();
