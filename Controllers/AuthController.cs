@@ -1,9 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SSO.Auth.Api.Data;
 using SSO.Auth.Api.DTOs;
 using SSO.Auth.Api.Models;
-using Microsoft.AspNetCore.Authorization;
+using System.Text.Json;
 
 
 /// Authentication API endpoints used by clients.
@@ -92,10 +93,29 @@ public class AuthController : ControllerBase
             // Audit successful login
             LogAudit(request.Username, "LOGIN_SUCCESS", "Login successful");
 
-            // NOTE: Token generation is implemented in IdentityServer; this sample returns a placeholder.
-            return Ok(new LoginResponse
+            // =========================================
+            // New: Get real token from IdentityServer
+            // =========================================
+            var tokenEndpoint = $"{Request.Scheme}://{Request.Host}/connect/token";
+            using var client = new HttpClient();
+
+            var content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
-                Token = "TEST-TOKEN", // temporary placeholder for demo
+                ["grant_type"] = "password",
+                ["client_id"] = "hris_client",
+                ["client_secret"] = "hris_secret",
+                ["username"] = request.Username,
+                ["password"] = request.Password,
+                ["scope"] = "openid profile sso_api"
+            });
+
+            var response = await client.PostAsync(tokenEndpoint, content);
+            var json = await response.Content.ReadAsStringAsync();
+
+            // Return the IdentityServer token response along with your existing user info
+            return Ok(new
+            {
+                TokenResponse = JsonSerializer.Deserialize<JsonElement>(json),
                 EmployeeId = personnel.employee_id,
                 EmployeeNo = personnel.employee_id.ToString(),
                 FullName = $"{personnel.given_name} {personnel.surname}",

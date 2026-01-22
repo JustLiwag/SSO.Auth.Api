@@ -2,12 +2,9 @@
 using Duende.IdentityServer.Models;
 using Duende.IdentityServer.Validation;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens; // Needed for TokenValidationParameters
 using SSO.Auth.Api.Data;
 using SSO.Auth.Api.Identity; // Custom validator lives here
-
-// Entry point for the SSO.Auth.Api application.
-// This file wires up EF Core, IdentityServer and middleware.
-// Keep comments to help the team understand the registration order.
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,6 +25,9 @@ builder.Services.AddIdentityServer(options =>
 {
     // EmitStaticAudienceClaim makes token audiences stable between IdentityServer versions.
     options.EmitStaticAudienceClaim = true;
+
+    // Keep users logged in via cookies to support SSO between web apps
+    options.Authentication.CookieLifetime = TimeSpan.FromHours(8); // user stays logged in 8 hours
 })
 .AddInMemoryClients(IdentityServerConfig.Clients)
 .AddInMemoryApiScopes(IdentityServerConfig.ApiScopes)
@@ -39,24 +39,33 @@ builder.Services.AddIdentityServer(options =>
 // ===========================
 // Register the password validator implementation from SSO.Auth.Api.Identity.
 // This class performs user validation for the Resource Owner Password grant.
-// Ensure the class exists in that namespace (CustomPasswordValidator).
 builder.Services.AddTransient<IResourceOwnerPasswordValidator, CustomPasswordValidator>();
 
 // ===========================
 // Authentication for APIs
 // ===========================
 // Configure bearer authentication so downstream APIs can accept tokens
-// issued by this IdentityServer instance (used for testing Swagger access).
+// issued by this IdentityServer instance.
 builder.Services.AddAuthentication("Bearer")
-.AddJwtBearer("Bearer", options =>
-{
-    // IdentityServer base address (issuer)
-    options.Authority = "https://localhost:5001";
-    // In this sample we don't validate audience to keep tokens generic.
-    options.TokenValidationParameters.ValidateAudience = false;
-});
+    .AddJwtBearer("Bearer", options =>
+    {
+        // IdentityServer base address (issuer)
+        options.Authority = "https://localhost:5001";
 
+        // Validate the token for internal SSO
+        options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+        {
+            ValidateAudience = false, // For demo purposes; set true in prod
+            ValidateIssuer = true,
+            ValidateLifetime = true
+        };
+
+        options.RequireHttpsMetadata = false; // dev only
+    });
+
+// ===========================
 // Authorization, controllers and Swagger
+// ===========================
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer(); // Required for Swagger/OpenAPI metadata
@@ -64,7 +73,9 @@ builder.Services.AddSwaggerGen(); // Generates Swagger documents for controllers
 
 var app = builder.Build();
 
+// ===========================
 // Configure Middleware
+// ===========================
 if (app.Environment.IsDevelopment())
 {
     // Enable Swagger only in Development to avoid exposing docs in prod.
@@ -74,11 +85,14 @@ if (app.Environment.IsDevelopment())
 
 app.UseRouting();
 app.UseHttpsRedirection();
+
 app.UseIdentityServer();   // Adds IdentityServer endpoints (/connect/token, etc.)
 app.UseAuthentication();   // Enables authentication middleware
 app.UseAuthorization();    // Enables authorization middleware
 
-app.UseEndpoints(endpoints => {
+app.UseEndpoints(endpoints =>
+{
     endpoints.MapControllers();
 });
+
 app.Run();

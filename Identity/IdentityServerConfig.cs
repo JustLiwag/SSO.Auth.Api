@@ -20,7 +20,7 @@ namespace SSO.Auth.Api.Identity
                     ClientId = "hris_client",
                     ClientName = "HRIS System",
 
-                    // Resource Owner Password grant - not recommended for public apps.
+                    // Resource Owner Password grant
                     AllowedGrantTypes = GrantTypes.ResourceOwnerPassword,
 
                     ClientSecrets =
@@ -35,7 +35,13 @@ namespace SSO.Auth.Api.Identity
                         "openid",
                         "profile",
                         "sso_api"
-                    }
+                    },
+
+                    // Include user claims (from CustomPasswordValidator) in token
+                    AlwaysIncludeUserClaimsInIdToken = true,
+
+                    // Optional: allow refresh tokens
+                    AllowOfflineAccess = true
                 }
             };
 
