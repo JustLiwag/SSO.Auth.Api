@@ -13,31 +13,57 @@ namespace SSO.Auth.Api.Identity
         /// In-memory client definitions. Example: an HRIS client that uses the
         /// Resource Owner Password grant to obtain tokens.
         public static IEnumerable<Client> Clients =>
-            new List<Client>
+    new List<Client>
+    {
+        // Existing API client (Resource Owner Password)
+        new Client
+        {
+            ClientId = "hris_client",
+            ClientName = "HRIS System",
+            AllowedGrantTypes = GrantTypes.ResourceOwnerPassword,
+            ClientSecrets =
             {
-                new Client
-                {
-                    ClientId = "hris_client",
-                    ClientName = "HRIS System",
+                new Secret("hris_secret".Sha256())
+            },
+            AllowedScopes =
+            {
+                "openid",
+                "profile",
+                "sso_api"
+            }
+        },
 
-                    // Resource Owner Password grant - not recommended for public apps.
-                    AllowedGrantTypes = GrantTypes.ResourceOwnerPassword,
+        // App A - browser app
+        new Client
+        {
+            ClientId = "appA_client",
+            ClientName = "App A",
+            AllowedGrantTypes = GrantTypes.Code,   // Authorization Code Flow
+            RequirePkce = true,                     // required for browser apps
+            RequireClientSecret = false,            // public client
+            RedirectUris = { "https://localhost:5298/signin-oidc" },
+            PostLogoutRedirectUris = { "https://localhost:5298/signout-callback-oidc" },
+            AllowedScopes = { "openid", "profile", "sso_api" },
+            AllowOfflineAccess = true,
+            RequireConsent = true                   // will ask for authorization if already logged in
+        },
 
-                    ClientSecrets =
-                    {
-                        // Keep secrets out of source in production (use secret store)
-                        new Secret("hris_secret".Sha256())
-                    },
+        // App B - browser app
+        new Client
+        {
+            ClientId = "appB_client",
+            ClientName = "App B",
+            AllowedGrantTypes = GrantTypes.Code,
+            RequirePkce = true,
+            RequireClientSecret = false,
+            RedirectUris = { "https://localhost:5004/signin-oidc" },
+            PostLogoutRedirectUris = { "https://localhost:5004/signout-callback-oidc" },
+            AllowedScopes = { "openid", "profile", "sso_api" },
+            AllowOfflineAccess = true,
+            RequireConsent = true
+        }
+    };
 
-                    // Scopes requested by the client
-                    AllowedScopes =
-                    {
-                        "openid",
-                        "profile",
-                        "sso_api"
-                    }
-                }
-            };
 
         // ===========================
         // API SCOPES

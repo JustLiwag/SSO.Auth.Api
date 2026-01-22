@@ -4,81 +4,85 @@ using Duende.IdentityServer.Validation;
 using Microsoft.EntityFrameworkCore;
 using SSO.Auth.Api.Data;
 using SSO.Auth.Api.Identity; // Custom validator lives here
-
-// Entry point for the SSO.Auth.Api application.
-// This file wires up EF Core, IdentityServer and middleware.
-// Keep comments to help the team understand the registration order.
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // ===========================
 // Database
 // ===========================
-// Register EF Core DbContext for the application. Connection string is
-// read from appsettings.json under "DefaultConnection".
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // ===========================
+// Razor Pages (for login/logout)
+// ===========================
+builder.Services.AddRazorPages();
+
+// ===========================
 // IdentityServer
 // ===========================
-// Configure IdentityServer with in-memory clients/scopes for development.
-// Replace in-memory stores and developer signing credential in production.
 builder.Services.AddIdentityServer(options =>
 {
-    // EmitStaticAudienceClaim makes token audiences stable between IdentityServer versions.
     options.EmitStaticAudienceClaim = true;
+
+    // Set login/logout pages
+    options.UserInteraction.LoginUrl = "/Account/Login";
+    options.UserInteraction.LogoutUrl = "/Account/Logout";
 })
 .AddInMemoryClients(IdentityServerConfig.Clients)
 .AddInMemoryApiScopes(IdentityServerConfig.ApiScopes)
 .AddInMemoryIdentityResources(IdentityServerConfig.IdentityResources)
-.AddDeveloperSigningCredential(); // ⚠️ replace with cert in prod
+.AddDeveloperSigningCredential(); // ⚠️ Replace with a real certificate in production
 
 // ===========================
 // Custom Validator
 // ===========================
-// Register the password validator implementation from SSO.Auth.Api.Identity.
-// This class performs user validation for the Resource Owner Password grant.
-// Ensure the class exists in that namespace (CustomPasswordValidator).
 builder.Services.AddTransient<IResourceOwnerPasswordValidator, CustomPasswordValidator>();
 
 // ===========================
 // Authentication for APIs
 // ===========================
-// Configure bearer authentication so downstream APIs can accept tokens
-// issued by this IdentityServer instance (used for testing Swagger access).
 builder.Services.AddAuthentication("Bearer")
-.AddJwtBearer("Bearer", options =>
-{
-    // IdentityServer base address (issuer)
-    options.Authority = "https://localhost:5001";
-    // In this sample we don't validate audience to keep tokens generic.
-    options.TokenValidationParameters.ValidateAudience = false;
-});
+    .AddJwtBearer("Bearer", options =>
+    {
+        options.Authority = "https://localhost:5001"; // IdentityServer URL
+        options.TokenValidationParameters.ValidateAudience = false;
+    });
 
-// Authorization, controllers and Swagger
+// ===========================
+// Authorization, Controllers, Swagger
+// ===========================
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer(); // Required for Swagger/OpenAPI metadata
-builder.Services.AddSwaggerGen(); // Generates Swagger documents for controllers
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Configure Middleware
+// ===========================
+// Middleware pipeline
+// ===========================
 if (app.Environment.IsDevelopment())
 {
-    // Enable Swagger only in Development to avoid exposing docs in prod.
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
+app.UseStaticFiles();
 app.UseRouting();
-app.UseHttpsRedirection();
-app.UseIdentityServer();   // Adds IdentityServer endpoints (/connect/token, etc.)
-app.UseAuthentication();   // Enables authentication middleware
-app.UseAuthorization();    // Enables authorization middleware
 
-app.UseEndpoints(endpoints => {
+// Razor Pages endpoints
+app.MapRazorPages(); // must come before IdentityServer middleware
+
+app.UseHttpsRedirection();
+app.UseIdentityServer();
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.UseEndpoints(endpoints =>
+{
     endpoints.MapControllers();
 });
+
 app.Run();
