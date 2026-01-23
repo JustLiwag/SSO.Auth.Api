@@ -16,7 +16,7 @@ namespace SSO.Auth.Api.Data
 
         // DbSets map to database tables created by migrations.
         public DbSet<User> Users { get; set; }
-        public DbSet<Employee> Employees { get; set; }
+        public DbSet<PMS_personnel_information> PMS_personnel_information { get; set; }
         public DbSet<Attendance> Attendance { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
 
