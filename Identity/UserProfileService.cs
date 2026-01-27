@@ -1,38 +1,33 @@
-﻿namespace SSO.Auth.Api.Identity
+﻿using Duende.IdentityServer.Models;
+using Duende.IdentityServer.Services;
+using SSO.Auth.Api.Data;
+using System.Security.Claims;
+
+public class UserProfileService : IProfileService
 {
-    using Duende.IdentityServer.Models;
-    using Duende.IdentityServer.Services;
-    using SSO.Auth.Api.Data;
-    using System.Security.Claims;
+    private readonly AppDbContext _db;
+    public UserProfileService(AppDbContext db) => _db = db;
 
-    public class UserProfileService : IProfileService
+    public async Task GetProfileDataAsync(ProfileDataRequestContext context)
     {
-        private readonly AppDbContext _db;
+        var sub = context.Subject.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(sub)) return;
 
-        public UserProfileService(AppDbContext db)
+        var user = await _db.Users.FindAsync(int.Parse(sub));
+        if (user == null) return;
+
+        var claims = new List<Claim>
         {
-            _db = db;
-        }
-
-        public async Task GetProfileDataAsync(ProfileDataRequestContext context)
-        {
-            var userId = context.Subject.FindFirst("sub")?.Value;
-
-            var user = await _db.Users.FindAsync(userId);
-            if (user == null) return;
-
-            context.IssuedClaims.AddRange(new[]
-            {
             new Claim("employee_no", user.EmployeeId),
-            new Claim("full_name", user.EmployeeId),
-            new Claim("division", user.EmployeeId)
-        });
-        }
-
-        public async Task IsActiveAsync(IsActiveContext context)
-        {
-            context.IsActive = true;
-        }
+            new Claim("name", user.EmployeeId)
+            // add more if you read from PersonnelDivisionDetails later
+        };
+        context.IssuedClaims.AddRange(claims);
     }
 
+    public Task IsActiveAsync(IsActiveContext context)
+    {
+        context.IsActive = true;
+        return Task.CompletedTask;
+    }
 }
