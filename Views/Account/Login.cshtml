@@ -1,10 +1,31 @@
-﻿@{
-    ViewData["Title"] = "SSO Login";
-}
+﻿@model SSO.Auth.Api.Models.LoginViewModel
 
 <h2>SSO Login</h2>
 
-<p>This confirms the login UI is working.</p>
+<form method="post">
+    <input type="hidden" asp-for="ReturnUrl" />
 
-<p>ReturnUrl:</p>
-<code>@ViewData["ReturnUrl"]</code>
+    <div>
+        <label>Username</label><br />
+        <input asp-for="Username" id="Username" />
+        <span asp-validation-for="Username"></span>
+    </div>
+
+    <div>
+        <label>Password</label><br />
+        <input asp-for="Password" type="password" id="Password" />
+        <span asp-validation-for="Password"></span>
+    </div>
+
+    <button type="submit">Login</button>
+</form>
+
+@if (!ViewData.ModelState.IsValid)
+{
+    <div style="color:red">
+        @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+        {
+            <p>@error.ErrorMessage</p>
+        }
+    </div>
+}
