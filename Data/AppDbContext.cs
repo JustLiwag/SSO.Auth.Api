@@ -16,7 +16,8 @@ namespace SSO.Auth.Api.Data
 
         public DbSet<User> Users { get; set; } = null!;
         public DbSet<PMS_personnel_information> PMS_personnel_information { get; set; } = null!;
-        public DbSet<AuditLog> AuditLogs { get; set; } = null!;
+        public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
 
 
 

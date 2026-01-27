@@ -29,18 +29,27 @@ namespace SSO.Auth.Api.Controllers
             if (!ModelState.IsValid)
                 return View(model);
 
-            // 1️⃣ Authenticate user (no hashing yet)
             var user = await _db.Users
-                .FirstOrDefaultAsync(u =>
-                    u.Username == model.Username &&
-                    u.PasswordHash == model.Password &&
-                    u.IsActive);
+    .FirstOrDefaultAsync(u => u.Username == model.Username);
 
             if (user == null)
             {
-                ModelState.AddModelError("", "Invalid username or password");
+                ModelState.AddModelError("", "Invalid username");
                 return View(model);
             }
+
+            if (!user.IsActive)
+            {
+                ModelState.AddModelError("", "Your account is inactive.");
+                return View(model);
+            }
+
+            if (user.PasswordHash != model.Password)
+            {
+                ModelState.AddModelError("", "Invalid password");
+                return View(model);
+            }
+
 
             // 2️⃣ Get employee info from the view
             var employee = await _db.PersonnelDivisionView
