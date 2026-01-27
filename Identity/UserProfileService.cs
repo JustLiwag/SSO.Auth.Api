@@ -3,26 +3,28 @@ using Duende.IdentityServer.Services;
 using SSO.Auth.Api.Data;
 using System.Security.Claims;
 
+namespace SSO.Auth.Api.Identity;
+
 public class UserProfileService : IProfileService
 {
     private readonly AppDbContext _db;
-    public UserProfileService(AppDbContext db) => _db = db;
 
-    public async Task GetProfileDataAsync(ProfileDataRequestContext context)
+    public UserProfileService(AppDbContext db)
     {
-        var sub = context.Subject.FindFirst("sub")?.Value;
-        if (string.IsNullOrEmpty(sub)) return;
+        _db = db;
+    }
 
-        var user = await _db.Users.FindAsync(int.Parse(sub));
-        if (user == null) return;
+    public Task GetProfileDataAsync(ProfileDataRequestContext context)
+    {
+        var userId = context.Subject.FindFirst("sub")?.Value;
 
         var claims = new List<Claim>
         {
-            new Claim("employee_no", user.EmployeeId),
-            new Claim("name", user.EmployeeId)
-            // add more if you read from PersonnelDivisionDetails later
+            new Claim("employee_id", userId ?? "")
         };
-        context.IssuedClaims.AddRange(claims);
+
+        context.IssuedClaims = claims;
+        return Task.CompletedTask;
     }
 
     public Task IsActiveAsync(IsActiveContext context)

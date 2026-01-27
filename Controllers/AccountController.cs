@@ -1,10 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
+﻿using Duende.IdentityModel;
+using Duende.IdentityServer;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SSO.Auth.Api.Data;
 using SSO.Auth.Api.Models;
+using System.Security.Claims;
 
 namespace SSO.Auth.Api.Controllers
 {
@@ -17,102 +18,136 @@ namespace SSO.Auth.Api.Controllers
             _db = db;
         }
 
+        // =========================
+        // GET: /Account/Login
+        // =========================
         [HttpGet]
         public IActionResult Login(string returnUrl)
         {
-            return View(new LoginViewModel { ReturnUrl = returnUrl });
+            ViewData["ReturnUrl"] = returnUrl;
+            return View();
         }
 
+        // =========================
+        // POST: /Account/Login
+        // =========================
         [HttpPost]
-        public async Task<IActionResult> Login(LoginViewModel model)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Login(
+            string username,
+            string password,
+            string returnUrl)
         {
-            if (!ModelState.IsValid)
-                return View(model);
+            ViewData["ReturnUrl"] = returnUrl;
 
+            // -------------------------
+            // Basic validation
+            // -------------------------
+            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+            {
+                ModelState.AddModelError("", "Username and password are required.");
+                return View();
+            }
+
+            // -------------------------
+            // 1. Validate credentials
+            // -------------------------
             var user = await _db.Users
-    .FirstOrDefaultAsync(u => u.Username == model.Username);
+                .FirstOrDefaultAsync(u => u.Username == username);
 
-            if (user == null)
+            if (user == null || user.PasswordHash != password)
             {
-                ModelState.AddModelError("", "Invalid username");
-                return View(model);
+                ModelState.AddModelError("", "Invalid username or password.");
+                return View();
             }
 
-            if (!user.IsActive)
+            // -------------------------
+            // 2. Check employment status via VIEW
+            // -------------------------
+            var personnel = await _db.PersonnelDivisionDetails
+                .FirstOrDefaultAsync(p => p.employee_id == user.EmployeeId);
+
+            if (personnel == null)
             {
-                ModelState.AddModelError("", "Your account is inactive.");
-                return View(model);
+                ModelState.AddModelError("", "Personnel record not found.");
+                return View();
             }
 
-            if (user.PasswordHash != model.Password)
+            if (personnel.separation_date != null ||
+                personnel.division_name.Equals("INACTIVE", StringComparison.OrdinalIgnoreCase))
             {
-                ModelState.AddModelError("", "Invalid password");
-                return View(model);
+                ModelState.AddModelError("", "Your account is inactive or separated.");
+                return View();
             }
 
-
-            // 2️⃣ Get employee info from the view
-            var employee = await _db.PersonnelDivisionView
-                .AsNoTracking()
-                .FirstOrDefaultAsync(e => e.employee_id == user.EmployeeId);
-
-            // 3️⃣ Block separated users
-            if (employee?.separation_date != null)
-            {
-                ModelState.AddModelError("", "Your account is no longer active.");
-                return View(model);
-            }
-
-            // 4️⃣ Map claims
+            // -------------------------
+            // 3. Create claims
+            // -------------------------
             var claims = new List<Claim>
-    {
-        new Claim(ClaimTypes.Name, user.Username),
-        new Claim("employee_id", user.EmployeeId)
-    };
-
-            if (employee != null)
             {
-                claims.Add(new Claim("surname", employee.surname));
-                claims.Add(new Claim("given_name", employee.given_name));
-                claims.Add(new Claim("division_name", employee.division_name));
-            }
+                // REQUIRED by Duende
+                new Claim(JwtClaimTypes.Subject, user.EmployeeId),
+
+                // Optional but recommended
+                new Claim(JwtClaimTypes.PreferredUserName, user.Username),
+                new Claim(JwtClaimTypes.Name, user.Username),
+
+                // Custom claim
+                new Claim("division", personnel.division_name)
+            };
+
 
             var identity = new ClaimsIdentity(
                 claims,
-                CookieAuthenticationDefaults.AuthenticationScheme
+                IdentityServerConstants.DefaultCookieAuthenticationScheme
             );
+
             var principal = new ClaimsPrincipal(identity);
 
-            // 5️⃣ Sign in
+            // -------------------------
+            // 4. Sign in to IdentityServer
+            // -------------------------
             await HttpContext.SignInAsync(
-                CookieAuthenticationDefaults.AuthenticationScheme,
+                IdentityServerConstants.DefaultCookieAuthenticationScheme,
                 principal
             );
 
-            // 6️⃣ Audit Log (match your table structure)
+            // -------------------------
+            // 5. Audit log (SUCCESS)
+            // -------------------------
             _db.AuditLogs.Add(new AuditLog
             {
                 Username = user.Username,
-                Action = "Login",
-                Reason = "Successful login",
+                Action = "LoginSuccess",
+                Reason = "Valid login",
                 Timestamp = DateTime.UtcNow
             });
+
             await _db.SaveChangesAsync();
 
-            // 7️⃣ Redirect
-            if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
-                return Redirect(model.ReturnUrl);
+            // -------------------------
+            // 6. Redirect back to client
+            // -------------------------
+            if (!string.IsNullOrWhiteSpace(returnUrl))
+            {
+                return Redirect(returnUrl);
+            }
 
             return RedirectToAction("Index", "Home");
         }
 
-
-
+        // =========================
+        // POST: /Account/Logout
+        // =========================
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()
         {
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            return RedirectToAction("Login");
+            await HttpContext.SignOutAsync(
+                IdentityServerConstants.DefaultCookieAuthenticationScheme
+            );
+
+            return RedirectToAction("Index", "Home");
         }
     }
 }

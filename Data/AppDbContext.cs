@@ -1,42 +1,24 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SSO.Auth.Api.Models;
 
+namespace SSO.Auth.Api.Data;
 
-namespace SSO.Auth.Api.Data
+public class AppDbContext : DbContext
 {
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-    using Microsoft.EntityFrameworkCore;
-    using SSO.Auth.Api.Models;
+    public DbSet<User> Users => Set<User>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
-    public class AppDbContext : DbContext
+    public DbSet<PersonnelDivisionView> PersonnelDivisionDetails { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options)
-            : base(options)
-        { }
+        modelBuilder.Entity<PersonnelDivisionView>()
+            .HasNoKey()
+            .ToView("vw_PersonnelDivisionDetails");
 
-        public DbSet<User> Users { get; set; } = null!;
-        public DbSet<PMS_personnel_information> PMS_personnel_information { get; set; } = null!;
-        public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
-
-
-
-
-        // 1️⃣ Add this for the view
-        public DbSet<PersonnelDivisionView> PersonnelDivisionView { get; set; } = null!;
-
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            base.OnModelCreating(modelBuilder);
-
-            // Table entity
-            modelBuilder.Entity<PMS_personnel_information>()
-                .HasKey(p => p.hris_id);
-
-            // View entity
-            modelBuilder.Entity<PersonnelDivisionView>()
-                .HasNoKey()
-                .ToView("vw_PersonnelDivisionDetails"); // map to view
-        }
+        base.OnModelCreating(modelBuilder);
     }
 
 }

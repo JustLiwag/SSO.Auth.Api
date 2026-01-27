@@ -1,16 +1,14 @@
-﻿namespace SSO.Auth.Api.Models
-{
-    using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
+namespace SSO.Auth.Api.Models
+{
     public class LoginViewModel
     {
-        [Required(ErrorMessage = "Username is required.")]
+        [Required(ErrorMessage = "The Username field is required.")]
         public string Username { get; set; } = null!;
 
-        [Required(ErrorMessage = "Password is required.")]
+        [Required(ErrorMessage = "The Password field is required.")]
+        [DataType(DataType.Password)]
         public string Password { get; set; } = null!;
-
-        public string? ReturnUrl { get; set; }
     }
-
 }

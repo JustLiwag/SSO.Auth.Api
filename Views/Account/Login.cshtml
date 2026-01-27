@@ -1,36 +1,29 @@
-﻿@using SSO.Auth.Api.Models
-@model LoginViewModel
-
+﻿@{
+    ViewData["Title"] = "Login";
+}
 <h2>SSO Login</h2>
 
-<form asp-action="Login" method="post">
-    <input type="hidden" asp-for="ReturnUrl" />
-
+<form method="post">
     <div>
-        <label asp-for="Username"></label>
-        <input asp-for="Username" />
-        <span asp-validation-for="Username" style="color:red"></span>
+        <label>Username</label>
+        <input name="username" type="text" />
     </div>
-
     <div>
-        <label asp-for="Password"></label>
-        <input asp-for="Password" type="password" />
-        <span asp-validation-for="Password" style="color:red"></span>
+        <label>Password</label>
+        <input name="password" type="password" />
     </div>
-
+    <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+    <div style="color:red">
+        @ViewData["Error"]
+    </div>
     <button type="submit">Login</button>
 </form>
-
 @if (!ViewData.ModelState.IsValid)
 {
-    <div style="color:red">
+    <div class="alert alert-danger">
         @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
         {
-            <p>@error.ErrorMessage</p>
+            <div>@error.ErrorMessage</div>
         }
     </div>
-}
-
-@section Scripts {
-    <partial name="_ValidationScriptsPartial" />
 }
