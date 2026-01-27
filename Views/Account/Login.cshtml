@@ -1,29 +1,61 @@
 ﻿@{
     ViewData["Title"] = "Login";
 }
-<h2>SSO Login</h2>
+<link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+<link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/SSO.Client.VAMS.styles.css" asp-append-version="true" />
 
-<form method="post">
-    <div>
-        <label>Username</label>
-        <input name="username" type="text" />
+
+<div class="d-flex justify-content-center align-items-center vh-100 bg-light">
+    <div class="card shadow-lg border-0 p-4" style="width: 100%; max-width: 400px;">
+        <div class="card-body">
+            <h2 class="fw-bold text-center mb-4">SSO Login</h2>
+
+            <form id="loginForm" method="post">
+                <div class="form-floating mb-3">
+                    <input name="username" type="text" class="form-control" id="userInput" placeholder="Username" required>
+                    <label for="userInput">Username</label>
+                </div>
+
+                <div class="form-floating mb-3">
+                    <input name="password" type="password" class="form-control" id="passInput" placeholder="Password" required>
+                    <label for="passInput">Password</label>
+                </div>
+
+                @if (ViewData["Error"] != null || !ViewData.ModelState.IsValid)
+                {
+                    <div class="d-flex align-items-center border border-danger bg-danger-subtle text-danger rounded p-2 mb-3 small">
+                        <i class="bi bi-x-circle-fill me-2 fs-5"></i>
+                        <div>
+                            @ViewData["Error"]
+                            @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                            {
+                                <span>@error.ErrorMessage</span>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+
+                <button type="submit" id="submitBtn" class="btn btn-primary w-100 py-2 fw-semibold mt-2">
+                    <span id="btnText">Sign In</span>
+                    <span id="btnSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                </button>
+            </form>
+        </div>
     </div>
-    <div>
-        <label>Password</label>
-        <input name="password" type="password" />
-    </div>
-    <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
-    <div style="color:red">
-        @ViewData["Error"]
-    </div>
-    <button type="submit">Login</button>
-</form>
-@if (!ViewData.ModelState.IsValid)
-{
-    <div class="alert alert-danger">
-        @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
-        {
-            <div>@error.ErrorMessage</div>
-        }
-    </div>
-}
+</div>
+
+<script>
+    const loginForm = document.getElementById('loginForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const btnText = document.getElementById('btnText');
+    const btnSpinner = document.getElementById('btnSpinner');
+
+    loginForm.addEventListener('submit', function () {
+        submitBtn.disabled = true;
+        btnText.textContent = 'Authenticating...';
+        btnSpinner.classList.remove('d-none');
+    });
+</script>
