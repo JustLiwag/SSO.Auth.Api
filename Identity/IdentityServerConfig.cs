@@ -28,7 +28,8 @@ namespace SSO.Auth.Api.Identity
                     AllowedScopes =
                     {
                         "openid",
-                        "profile"
+                        "profile",
+                        "vams_api"
                     }
                 }
 
