@@ -7,17 +7,39 @@ namespace SSO.Auth.Api.Identity
         public static IEnumerable<Client> Clients => new[]
         {
         new Client
-        {
-            ClientId = "vams_client",
-            AllowedGrantTypes = GrantTypes.Code,
-            RequirePkce = true,
-            RequireClientSecret = false,
+{
+    ClientId = "vams_client",
+    ClientName = "VAMS Client",
 
-            RedirectUris = { "https://localhost:5003/signin-oidc" },
-            PostLogoutRedirectUris = { "https://localhost:5003/signout-callback-oidc" },
+    AllowedGrantTypes = GrantTypes.Code,
+    RequirePkce = true,
+    RequireClientSecret = false,
 
-            AllowedScopes = { "openid", "profile", "vams_api" }
-        }
+    RedirectUris =
+    {
+        "https://localhost:5003/signin-oidc"
+    },
+
+    PostLogoutRedirectUris =
+    {
+        "https://localhost:5003/"
+    },
+
+    AllowedCorsOrigins =
+    {
+        "https://localhost:5003"
+    },
+
+    AllowedScopes =
+    {
+        "openid",
+        "profile",
+        "vams_api"
+    },
+
+    AllowOfflineAccess = true
+},
+
     };
 
         public static IEnumerable<ApiScope> ApiScopes => new[]

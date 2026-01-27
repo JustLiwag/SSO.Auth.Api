@@ -36,6 +36,12 @@ builder.Services.AddIdentityServer(options =>
 .AddProfileService<UserProfileService>()
 .AddDeveloperSigningCredential();
 
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/Account/Login";
+});
+
+
 var app = builder.Build();
 
 app.UseStaticFiles();
