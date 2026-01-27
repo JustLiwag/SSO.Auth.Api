@@ -17,29 +17,28 @@ namespace SSO.Auth.Api.Identity
 
                     RedirectUris =
                     {
-                        "https://localhost:5002/signin-oidc"
+                        "https://localhost:5003/signin-oidc"
                     },
 
                     PostLogoutRedirectUris =
                     {
-                        "https://localhost:5002/signout-callback-oidc"
+                        "https://localhost:5003/signout-callback-oidc"
                     },
 
                     AllowedScopes =
                     {
                         "openid",
-                        "profile",
-                        "vams_api"
+                        "profile"
                     }
                 }
+
 
             };
 
         public static IEnumerable<ApiScope> ApiScopes =>
             new[]
             {
-                new ApiScope("vams_api", "VAMS API"),
-                new ApiScope("hris_api", "HRIS API")
+                new ApiScope("vams_api", "VAMS API")
             };
 
         public static IEnumerable<IdentityResource> IdentityResources =>
