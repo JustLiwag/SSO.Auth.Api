@@ -27,13 +27,13 @@ namespace SSO.Auth.Api.Controllers
         public async Task<IActionResult> Login(LoginViewModel model)
         {
             if (!ModelState.IsValid)
-                return View(model);  // Will show validation errors
+                return View(model);
 
-            // 1️⃣ Authenticate user
+            // 1️⃣ Authenticate user (no hashing yet)
             var user = await _db.Users
                 .FirstOrDefaultAsync(u =>
                     u.Username == model.Username &&
-                    u.PasswordHash == model.Password && // TODO: Replace with hashing later
+                    u.PasswordHash == model.Password &&
                     u.IsActive);
 
             if (user == null)
@@ -42,7 +42,7 @@ namespace SSO.Auth.Api.Controllers
                 return View(model);
             }
 
-            // 2️⃣ Get employee info from view
+            // 2️⃣ Get employee info from the view
             var employee = await _db.PersonnelDivisionView
                 .AsNoTracking()
                 .FirstOrDefaultAsync(e => e.employee_id == user.EmployeeId);
@@ -58,7 +58,6 @@ namespace SSO.Auth.Api.Controllers
             var claims = new List<Claim>
     {
         new Claim(ClaimTypes.Name, user.Username),
-        new Claim("sub", user.UserId.ToString()),
         new Claim("employee_id", user.EmployeeId)
     };
 
@@ -81,13 +80,13 @@ namespace SSO.Auth.Api.Controllers
                 principal
             );
 
-            // 6️⃣ Audit Log
+            // 6️⃣ Audit Log (match your table structure)
             _db.AuditLogs.Add(new AuditLog
             {
-                UserId = user.UserId,
+                Username = user.Username,
                 Action = "Login",
-                Timestamp = DateTime.UtcNow,
-                Remarks = "Successful login"
+                Reason = "Successful login",
+                Timestamp = DateTime.UtcNow
             });
             await _db.SaveChangesAsync();
 
@@ -97,6 +96,7 @@ namespace SSO.Auth.Api.Controllers
 
             return RedirectToAction("Index", "Home");
         }
+
 
 
         [HttpPost]

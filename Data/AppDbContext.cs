@@ -19,6 +19,7 @@ namespace SSO.Auth.Api.Data
         public DbSet<AuditLog> AuditLogs { get; set; } = null!;
 
 
+
         // 1️⃣ Add this for the view
         public DbSet<PersonnelDivisionView> PersonnelDivisionView { get; set; } = null!;
 
