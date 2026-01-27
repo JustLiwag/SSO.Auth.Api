@@ -31,12 +31,14 @@ namespace SSO.Auth.Api.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            modelBuilder.Entity<PersonnelDivisionView>(entity =>
-            {
-                // This represents a read-only DB view (no primary key)
-                entity.HasNoKey();
-                entity.ToView("vw_PersonnelDivisionDetails");
-            });
+            modelBuilder.Entity<PMS_personnel_information>()
+    .HasKey(p => p.hris_id);   // explicitly define PK
+
+            modelBuilder.Entity<PersonnelDivisionView>()
+    .HasNoKey()                  // tells EF Core it’s keyless
+    .ToView("vw_PersonnelDivisionDetails"); // map explicitly
+
+
         }
     }
 }
