@@ -3,10 +3,11 @@
     public class AuditLog
     {
         public int AuditLogId { get; set; }
-        public string Username { get; set; } = null!;
-        public string Action { get; set; } = null!;
-        public string Reason { get; set; } = null!;
+        public int UserId { get; set; }
+        public string Action { get; set; } = string.Empty;
         public DateTime Timestamp { get; set; }
+        public string? Remarks { get; set; }
     }
+
 
 }

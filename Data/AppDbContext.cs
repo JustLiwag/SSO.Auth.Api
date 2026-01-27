@@ -5,40 +5,36 @@ using SSO.Auth.Api.Models;
 namespace SSO.Auth.Api.Data
 {
 
-    /// Application DbContext for EF Core. Exposes DbSets for application tables
-    /// and maps a database view to a model for read-only queries.
+    using Microsoft.EntityFrameworkCore;
+    using SSO.Auth.Api.Models;
+
     public class AppDbContext : DbContext
     {
-
-        /// Construct the context using DI-provided options.
         public AppDbContext(DbContextOptions<AppDbContext> options)
-            : base(options) { }
+            : base(options)
+        { }
 
-        // DbSets map to database tables created by migrations.
-        public DbSet<User> Users { get; set; }
-        public DbSet<PMS_personnel_information> PMS_personnel_information { get; set; }
-        public DbSet<Attendance> Attendance { get; set; }
-        public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<User> Users { get; set; } = null!;
+        public DbSet<PMS_personnel_information> PMS_personnel_information { get; set; } = null!;
+        public DbSet<AuditLog> AuditLogs { get; set; } = null!;
 
 
-        // This DbSet maps to a database view (vw_PersonnelDivisionDetails).
-        // It is configured as keyless in OnModelCreating.
-        public DbSet<PersonnelDivisionView> PersonnelDivisionDetails { get; set; }
+        // 1️⃣ Add this for the view
+        public DbSet<PersonnelDivisionView> PersonnelDivisionView { get; set; } = null!;
 
-        /// Model configuration: configure the PersonnelDivisionView as a view without a primary key.
-        /// Keep other model configuration here if needed (indexes, relationships, constraints).
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
+            // Table entity
             modelBuilder.Entity<PMS_personnel_information>()
-    .HasKey(p => p.hris_id);   // explicitly define PK
+                .HasKey(p => p.hris_id);
 
+            // View entity
             modelBuilder.Entity<PersonnelDivisionView>()
-    .HasNoKey()                  // tells EF Core it’s keyless
-    .ToView("vw_PersonnelDivisionDetails"); // map explicitly
-
-
+                .HasNoKey()
+                .ToView("vw_PersonnelDivisionDetails"); // map to view
         }
     }
+
 }
