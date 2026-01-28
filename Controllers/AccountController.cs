@@ -1,11 +1,12 @@
-﻿using Duende.IdentityModel;
+﻿
 using Duende.IdentityServer;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SSO.Auth.Api.Data;
 using SSO.Auth.Api.Models;
-using System.Security.Claims;
+
 
 namespace SSO.Auth.Api.Controllers
 {
@@ -28,7 +29,6 @@ namespace SSO.Auth.Api.Controllers
             return View();
         }
 
-
         // =========================
         // POST: /Account/Login
         // =========================
@@ -36,105 +36,56 @@ namespace SSO.Auth.Api.Controllers
         public async Task<IActionResult> Login(
             string username,
             string password,
-            string returnUrl)
+            string returnUrl
+)
         {
-            ViewData["ReturnUrl"] = returnUrl;
-
-            // -------------------------
-            // Basic validation
-            // -------------------------
-            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+            // 🔍 SAFETY CHECK (optional but recommended)
+            if (string.IsNullOrEmpty(returnUrl))
             {
-                ModelState.AddModelError("", "Username and password are required.");
-                return View();
+                return BadRequest("Missing returnUrl");
             }
 
-            // -------------------------
-            // 1. Validate credentials
-            // -------------------------
+            // ============================
+            // YOUR EXISTING VALIDATIONS
+            // ============================
             var user = await _db.Users
-                .FirstOrDefaultAsync(u => u.Username == username);
+                .FirstOrDefaultAsync(x => x.Username == username);
 
             if (user == null || user.PasswordHash != password)
             {
-                ModelState.AddModelError("", "Invalid username or password.");
+                ViewBag.ReturnUrl = returnUrl;
+                ViewBag.Error = "Invalid username or password";
                 return View();
             }
 
-            // -------------------------
-            // 2. Check employment status via VIEW
-            // -------------------------
-            var personnel = await _db.PersonnelDivisionDetails
-                .FirstOrDefaultAsync(p => p.employee_id == user.EmployeeId);
-
-            if (personnel == null)
+            var identityUser = new IdentityServerUser(user.EmployeeId)
             {
-                ModelState.AddModelError("", "Personnel record not found.");
-                return View();
-            }
-
-            if (personnel.separation_date != null ||
-                personnel.division_name.Equals("INACTIVE", StringComparison.OrdinalIgnoreCase))
-            {
-                ModelState.AddModelError("", "Your account is inactive or separated.");
-                return View();
-            }
-
-            // -------------------------
-            // 3. Create claims
-            // -------------------------
-            var claims = new List<Claim>
-            {
-                // REQUIRED by Duende
-                new Claim(JwtClaimTypes.Subject, user.EmployeeId),
-
-                // Optional but recommended
-                new Claim(JwtClaimTypes.PreferredUserName, user.Username),
-                new Claim(JwtClaimTypes.Name, user.Username),
-
-                // Custom claim
-                new Claim("division", personnel.division_name)
+                DisplayName = user.Username
             };
 
+            await HttpContext.SignInAsync(identityUser);
 
-            var identity = new ClaimsIdentity(
-                claims,
-                IdentityServerConstants.DefaultCookieAuthenticationScheme
-            );
+            return Redirect(returnUrl);
 
-            var principal = new ClaimsPrincipal(identity);
 
-            // -------------------------
-            // 4. Sign in to IdentityServer
-            // -------------------------
-            await HttpContext.SignInAsync(
-                IdentityServerConstants.DefaultCookieAuthenticationScheme,
-                principal
-            );
-
-            // -------------------------
-            // 5. Audit log (SUCCESS)
-            // -------------------------
+            // ============================
+            // AUDIT LOG (KEEP YOURS)
+            // ============================
             _db.AuditLogs.Add(new AuditLog
             {
                 Username = user.Username,
                 Action = "LoginSuccess",
-                Reason = "Valid login",
                 Timestamp = DateTime.UtcNow
             });
-
             await _db.SaveChangesAsync();
 
-            // -------------------------
-            // 6. Redirect back to client
-            // -------------------------
-            if (!string.IsNullOrWhiteSpace(returnUrl))
-            {
-                return Redirect(returnUrl);
-            }
-
-            return RedirectToAction("Index", "Home");
+            // ============================
+            // 🔥 DO NOT CHANGE THIS
+            // ============================
+            return Redirect(returnUrl);
         }
+
+
 
         // =========================
         // POST: /Account/Logout

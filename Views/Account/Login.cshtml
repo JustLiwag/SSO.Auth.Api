@@ -3,7 +3,7 @@
 }
 <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
 <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-<link rel="stylesheet" href="~/SSO.Client.VAMS.styles.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/SSO.Auth.Api.styles.css" asp-append-version="true" />
 
 
 <div class="d-flex justify-content-center align-items-center vh-100 bg-light">
@@ -36,7 +36,7 @@
                     </div>
                 }
 
-                <input type="hidden" name="returnUrl" value="@ViewBag.ReturnUrl" />
+                <input type="hidden" name="ReturnUrl" value="@ViewBag.ReturnUrl" />
 
                 <button type="submit" id="submitBtn" class="btn btn-primary w-100 py-2 fw-semibold mt-2">
                     <span id="btnText">Sign In</span>
