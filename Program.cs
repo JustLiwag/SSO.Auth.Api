@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using SSO.Auth.Api.Data;
 using SSO.Auth.Api.Identity;
+using SSO.Auth.Api.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,20 +12,41 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services
-    .AddIdentityServer()
+    .AddIdentityServer(options =>
+    {
+        options.EmitStaticAudienceClaim = true;
+    })
     .AddInMemoryClients(IdentityServerConfig.Clients)
-    .AddInMemoryIdentityResources(IdentityServerConfig.IdentityResources)
     .AddInMemoryApiScopes(IdentityServerConfig.ApiScopes)
-    .AddProfileService<UserProfileService>();
+    .AddInMemoryIdentityResources(IdentityServerConfig.IdentityResources)
+    .AddProfileService<UserProfileService>()
+    .AddDeveloperSigningCredential();
 
-builder.Services.AddAuthentication()
-    .AddCookie();
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = "sso_cookie";
+    options.DefaultSignInScheme = "sso_cookie";
+    options.DefaultChallengeScheme = "sso_cookie";
+})
+.AddCookie("sso_cookie", options =>
+{
+    options.LoginPath = "/Account/Login";
+    options.LogoutPath = "/Account/Logout";
+
+    // Optional but recommended
+    options.Cookie.Name = "SSO.Auth.Cookie";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+});
+
 
 var app = builder.Build();
 
 app.UseStaticFiles();
 app.UseRouting();
 
+app.UseAuthentication();
 app.UseIdentityServer();
 app.UseAuthorization();
 

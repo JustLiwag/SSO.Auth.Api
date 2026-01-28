@@ -14,17 +14,26 @@ public class UserProfileService : IProfileService
         _db = db;
     }
 
-    public Task GetProfileDataAsync(ProfileDataRequestContext context)
+    public async Task GetProfileDataAsync(ProfileDataRequestContext context)
     {
-        var userId = context.Subject.FindFirst("sub")?.Value;
+        var employeeNo = context.Subject.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(employeeNo))
+            return;
+
+        var user = _db.PersonnelDivisionDetails
+            .FirstOrDefault(x => x.employee_id == employeeNo);
+
+        if (user == null)
+            return;
 
         var claims = new List<Claim>
         {
-            new Claim("employee_id", userId ?? "")
+            new Claim(ClaimTypes.Name, user.given_name + " " + user.surname ?? ""),
+            new Claim("division", user.division_name ?? "")
         };
 
-        context.IssuedClaims = claims;
-        return Task.CompletedTask;
+        context.IssuedClaims.AddRange(claims);
     }
 
     public Task IsActiveAsync(IsActiveContext context)
