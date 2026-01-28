@@ -13,18 +13,30 @@ public static class IdentityServerConfig
                 ClientName = "VAMS",
                 AllowedGrantTypes = GrantTypes.Code,
                 RequirePkce = true,
-                RequireClientSecret = false,
 
-                RedirectUris = { "https://localhost:5003/signin-oidc" },
-                PostLogoutRedirectUris = { "https://localhost:5003/" },
+                ClientSecrets =
+                {
+                    new Secret("vams_secret".Sha256())
+                },
+
+                RedirectUris =
+                {
+                    "https://localhost:5003/signin-oidc"
+                },
+
+                PostLogoutRedirectUris =
+                {
+                    "https://localhost:5003/"
+                },
 
                 AllowedScopes =
                 {
                     "openid",
-                    "profile"
+                    "profile",
+                    "vams_api"
                 },
 
-                AllowOfflineAccess = true
+                AllowOfflineAccess = false
             }
         };
 
