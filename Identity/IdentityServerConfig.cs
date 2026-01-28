@@ -27,7 +27,7 @@ public static class IdentityServerConfig
 
                 PostLogoutRedirectUris =
                 {
-                    "https://localhost:5003/signout-callback-oidc"
+                    "https://localhost:5003/"
                 },
 
                 AllowedScopes =
