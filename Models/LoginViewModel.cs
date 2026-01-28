@@ -10,5 +10,7 @@ namespace SSO.Auth.Api.Models
         [Required(ErrorMessage = "The Password field is required.")]
         [DataType(DataType.Password)]
         public string Password { get; set; } = null!;
+
+        public string ReturnUrl { get; set; } = null!;
     }
 }

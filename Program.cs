@@ -22,23 +22,13 @@ builder.Services
     .AddProfileService<UserProfileService>()
     .AddDeveloperSigningCredential();
 
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = "sso_cookie";
-    options.DefaultSignInScheme = "sso_cookie";
-    options.DefaultChallengeScheme = "sso_cookie";
-})
-.AddCookie("sso_cookie", options =>
-{
-    options.LoginPath = "/Account/Login";
-    options.LogoutPath = "/Account/Logout";
-
-    // Optional but recommended
-    options.Cookie.Name = "SSO.Auth.Cookie";
-    options.Cookie.HttpOnly = true;
-    options.Cookie.SameSite = SameSiteMode.Lax;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-});
+builder.Services.AddAuthentication("sso_cookie")
+    .AddCookie("sso_cookie", options =>
+    {
+        options.LoginPath = "/Account/Login";
+        options.LogoutPath = "/Account/Logout";
+        options.Cookie.Name = "SSO.Auth.Cookie";
+    });
 
 
 var app = builder.Build();

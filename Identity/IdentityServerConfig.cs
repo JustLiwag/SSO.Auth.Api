@@ -10,7 +10,8 @@ public static class IdentityServerConfig
             new Client
             {
                 ClientId = "vams_client",
-                ClientName = "VAMS",
+                ClientName = "VAMS Client",
+
                 AllowedGrantTypes = GrantTypes.Code,
                 RequirePkce = true,
 
@@ -26,7 +27,7 @@ public static class IdentityServerConfig
 
                 PostLogoutRedirectUris =
                 {
-                    "https://localhost:5003/"
+                    "https://localhost:5003/signout-callback-oidc"
                 },
 
                 AllowedScopes =
@@ -36,8 +37,9 @@ public static class IdentityServerConfig
                     "vams_api"
                 },
 
-                AllowOfflineAccess = false
+                AllowOfflineAccess = true
             }
+
         };
 
     public static IEnumerable<ApiScope> ApiScopes =>

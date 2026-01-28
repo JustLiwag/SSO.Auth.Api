@@ -24,15 +24,15 @@ namespace SSO.Auth.Api.Controllers
         [HttpGet]
         public IActionResult Login(string returnUrl)
         {
-            ViewData["ReturnUrl"] = returnUrl;
+            ViewBag.ReturnUrl = returnUrl;
             return View();
         }
+
 
         // =========================
         // POST: /Account/Login
         // =========================
         [HttpPost]
-        [ValidateAntiForgeryToken]
         public async Task<IActionResult> Login(
             string username,
             string password,
