@@ -26,7 +26,6 @@ builder.Services.AddAuthentication("sso_cookie")
     .AddCookie("sso_cookie", options =>
     {
         options.LoginPath = "/Account/Login";
-        options.LogoutPath = "/Account/Logout";
         options.Cookie.Name = "SSO.Auth.Cookie";
     });
 
