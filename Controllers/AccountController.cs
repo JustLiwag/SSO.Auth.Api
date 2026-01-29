@@ -3,129 +3,87 @@ using Duende.IdentityServer.Models;
 using Duende.IdentityServer.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using SSO.Auth.Api.Data;
 using SSO.Auth.Api.Models;
 
 namespace SSO.Auth.Api.Controllers
 {
     public class AccountController : Controller
     {
-        private readonly AppDbContext _db;
-        private readonly IIdentityServerInteractionService _interactionService;
+        private readonly IIdentityServerInteractionService _interaction;
 
-        // ✅ FIXED CONSTRUCTOR (THIS WAS THE ROOT CAUSE)
-        public AccountController(
-            AppDbContext db,
-            IIdentityServerInteractionService interactionService
-        )
+        public AccountController(IIdentityServerInteractionService interaction)
         {
-            _db = db;
-            _interactionService = interactionService;
+            _interaction = interaction;
         }
 
         // =========================
-        // GET: /Account/Login
+        // LOGIN
         // =========================
         [HttpGet]
-        public IActionResult Login(string returnUrl)
+        public async Task<IActionResult> Login(string returnUrl)
         {
-            ViewBag.ReturnUrl = returnUrl;
-            return View();
-        }
-
-        // =========================
-        // POST: /Account/Login
-        // =========================
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Login(
-            string username,
-            string password,
-            string returnUrl
-        )
-        {
-            // 🔒 REQUIRED FOR OIDC
+            // If no returnUrl, send user back to client via authorize
             if (string.IsNullOrWhiteSpace(returnUrl))
             {
-                return BadRequest("Missing returnUrl");
+                return Redirect("~/");
             }
 
-            // =========================
-            // YOUR EXISTING VALIDATION
-            // =========================
-            var user = await _db.Users
-                .FirstOrDefaultAsync(x => x.Username == username);
+            var context = await _interaction.GetAuthorizationContextAsync(returnUrl);
 
-            if (user == null || user.PasswordHash != password)
+            var vm = new LoginViewModel
             {
-                ViewBag.ReturnUrl = returnUrl;
-                ViewBag.Error = "Invalid username or password";
-                return View();
-            }
-
-            // =========================
-            // 🔑 IDENTITYSERVER SIGN-IN
-            // =========================
-            var identityUser = new IdentityServerUser(user.EmployeeId)
-            {
-                DisplayName = user.Username
+                ReturnUrl = returnUrl
             };
 
-            await HttpContext.SignInAsync(identityUser);
-
-            // =========================
-            // AUDIT LOG (KEPT)
-            // =========================
-            _db.AuditLogs.Add(new AuditLog
-            {
-                Username = user.Username,
-                Action = "LoginSuccess",
-                Timestamp = DateTime.UtcNow
-            });
-            await _db.SaveChangesAsync();
-
-            // 🔁 RETURN TO CLIENT (VAMS)
-            return Redirect(returnUrl);
+            return View(vm);
         }
 
-        // =========================
-        // POST: /Account/Logout
-        // (Manual logout from UI)
-        // =========================
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Logout()
+        public async Task<IActionResult> Login(LoginViewModel model)
         {
-            await HttpContext.SignOutAsync(
-                IdentityServerConstants.DefaultCookieAuthenticationScheme
-            );
+            if (!ModelState.IsValid)
+                return View(model);
 
-            return Redirect("~/");
+            if (string.IsNullOrWhiteSpace(model.ReturnUrl) ||
+                !_interaction.IsValidReturnUrl(model.ReturnUrl))
+            {
+                ModelState.AddModelError("", "Invalid return URL.");
+                return View(model);
+            }
+
+            // TODO: replace with real user validation
+            if (model.Username != "admin" || model.Password != "password")
+            {
+                ModelState.AddModelError("", "Invalid username or password");
+                return View(model);
+            }
+
+            var user = new IdentityServerUser(model.Username)
+            {
+                DisplayName = model.Username
+            };
+
+            await HttpContext.SignInAsync(user);
+
+            return Redirect(model.ReturnUrl);
         }
 
+
+
         // =========================
-        // GET: /Account/Logout
-        // (OIDC RP-Initiated Logout)
+        // LOGOUT (IMPORTANT)
         // =========================
         [HttpGet]
         public async Task<IActionResult> Logout(string logoutId)
         {
-            var logoutContext =
-                await _interactionService.GetLogoutContextAsync(logoutId);
+            var logoutContext = await _interaction.GetLogoutContextAsync(logoutId);
 
-            // 🔐 Sign out IdentityServer cookie
-            await HttpContext.SignOutAsync(
-                IdentityServerConstants.DefaultCookieAuthenticationScheme
-            );
-
-            // 🔁 Redirect back to client
-            if (!string.IsNullOrEmpty(logoutContext?.PostLogoutRedirectUri))
+            if (User?.Identity?.IsAuthenticated == true)
             {
-                return Redirect(logoutContext.PostLogoutRedirectUri);
+                await HttpContext.SignOutAsync();
             }
 
-            return Redirect("~/");
+            return Redirect(logoutContext?.PostLogoutRedirectUri ?? "/");
         }
     }
 }
