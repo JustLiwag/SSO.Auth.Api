@@ -6,49 +6,46 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SSO.Auth.Api.Data;
 using SSO.Auth.Api.Models;
+using System.Security.Claims;
 
 namespace SSO.Auth.Api.Controllers
 {
     public class AccountController : Controller
     {
+        private readonly IIdentityServerInteractionService _interaction;
         private readonly AppDbContext _db;
-        private readonly IIdentityServerInteractionService _interactionService;
 
-        // ✅ FIXED CONSTRUCTOR (THIS WAS THE ROOT CAUSE)
-        public AccountController(
-            AppDbContext db,
-            IIdentityServerInteractionService interactionService
-        )
+        public AccountController(AppDbContext db, IIdentityServerInteractionService interaction)
         {
+            _interaction = interaction;
             _db = db;
-            _interactionService = interactionService;
         }
 
         // =========================
-        // GET: /Account/Login
+        // LOGIN
         // =========================
         [HttpGet]
-        public IActionResult Login(string returnUrl)
+        public async Task<IActionResult> Login(string returnUrl)
         {
+            if (string.IsNullOrWhiteSpace(returnUrl) || !_interaction.IsValidReturnUrl(returnUrl))
+            {
+                return Redirect("~/");
+            }
+
             ViewBag.ReturnUrl = returnUrl;
             return View();
         }
 
-        // =========================
-        // POST: /Account/Login
-        // =========================
+
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Login(
-            string username,
-            string password,
-            string returnUrl
-        )
+        public async Task<IActionResult> Login(string username, string password, string ReturnUrl)
         {
-            // 🔒 REQUIRED FOR OIDC
-            if (string.IsNullOrWhiteSpace(returnUrl))
+            if (string.IsNullOrWhiteSpace(ReturnUrl) || !_interaction.IsValidReturnUrl(ReturnUrl))
             {
-                return BadRequest("Missing returnUrl");
+                ModelState.AddModelError("", "Invalid return URL.");
+                ViewBag.ReturnUrl = ReturnUrl;
+                return View();
             }
 
             // =========================
@@ -59,7 +56,7 @@ namespace SSO.Auth.Api.Controllers
 
             if (user == null || user.PasswordHash != password)
             {
-                ViewBag.ReturnUrl = returnUrl;
+                ViewBag.ReturnUrl = ReturnUrl;
                 ViewBag.Error = "Invalid username or password";
                 return View();
             }
@@ -72,8 +69,6 @@ namespace SSO.Auth.Api.Controllers
                 DisplayName = user.Username
             };
 
-            await HttpContext.SignInAsync(identityUser);
-
             // =========================
             // AUDIT LOG (KEPT)
             // =========================
@@ -85,47 +80,28 @@ namespace SSO.Auth.Api.Controllers
             });
             await _db.SaveChangesAsync();
 
-            // 🔁 RETURN TO CLIENT (VAMS)
-            return Redirect(returnUrl);
+            await HttpContext.SignInAsync(identityUser);
+
+            return Redirect(ReturnUrl);
         }
 
-        // =========================
-        // POST: /Account/Logout
-        // (Manual logout from UI)
-        // =========================
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Logout()
-        {
-            await HttpContext.SignOutAsync(
-                IdentityServerConstants.DefaultCookieAuthenticationScheme
-            );
 
-            return Redirect("~/");
-        }
+
 
         // =========================
-        // GET: /Account/Logout
-        // (OIDC RP-Initiated Logout)
+        // LOGOUT (IMPORTANT)
         // =========================
         [HttpGet]
         public async Task<IActionResult> Logout(string logoutId)
         {
-            var logoutContext =
-                await _interactionService.GetLogoutContextAsync(logoutId);
+            var logoutContext = await _interaction.GetLogoutContextAsync(logoutId);
 
-            // 🔐 Sign out IdentityServer cookie
-            await HttpContext.SignOutAsync(
-                IdentityServerConstants.DefaultCookieAuthenticationScheme
-            );
-
-            // 🔁 Redirect back to client
-            if (!string.IsNullOrEmpty(logoutContext?.PostLogoutRedirectUri))
+            if (User?.Identity?.IsAuthenticated == true)
             {
-                return Redirect(logoutContext.PostLogoutRedirectUri);
+                await HttpContext.SignOutAsync();
             }
 
-            return Redirect("~/");
+            return Redirect(logoutContext?.PostLogoutRedirectUri ?? "/");
         }
     }
 }
