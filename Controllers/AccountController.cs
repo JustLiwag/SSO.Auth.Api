@@ -3,17 +3,22 @@ using Duende.IdentityServer.Models;
 using Duende.IdentityServer.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using SSO.Auth.Api.Data;
 using SSO.Auth.Api.Models;
+using System.Security.Claims;
 
 namespace SSO.Auth.Api.Controllers
 {
     public class AccountController : Controller
     {
         private readonly IIdentityServerInteractionService _interaction;
+        private readonly AppDbContext _db;
 
-        public AccountController(IIdentityServerInteractionService interaction)
+        public AccountController(AppDbContext db, IIdentityServerInteractionService interaction)
         {
             _interaction = interaction;
+            _db = db;
         }
 
         // =========================
@@ -22,51 +27,64 @@ namespace SSO.Auth.Api.Controllers
         [HttpGet]
         public async Task<IActionResult> Login(string returnUrl)
         {
-            // If no returnUrl, send user back to client via authorize
-            if (string.IsNullOrWhiteSpace(returnUrl))
+            if (string.IsNullOrWhiteSpace(returnUrl) || !_interaction.IsValidReturnUrl(returnUrl))
             {
                 return Redirect("~/");
             }
 
-            var context = await _interaction.GetAuthorizationContextAsync(returnUrl);
-
-            var vm = new LoginViewModel
-            {
-                ReturnUrl = returnUrl
-            };
-
-            return View(vm);
+            ViewBag.ReturnUrl = returnUrl;
+            return View();
         }
+
 
         [HttpPost]
-        public async Task<IActionResult> Login(LoginViewModel model)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Login(string username, string password, string ReturnUrl)
         {
-            if (!ModelState.IsValid)
-                return View(model);
-
-            if (string.IsNullOrWhiteSpace(model.ReturnUrl) ||
-                !_interaction.IsValidReturnUrl(model.ReturnUrl))
+            if (string.IsNullOrWhiteSpace(ReturnUrl) || !_interaction.IsValidReturnUrl(ReturnUrl))
             {
                 ModelState.AddModelError("", "Invalid return URL.");
-                return View(model);
+                ViewBag.ReturnUrl = ReturnUrl;
+                return View();
             }
 
-            // TODO: replace with real user validation
-            if (model.Username != "admin" || model.Password != "password")
+            // =========================
+            // YOUR EXISTING VALIDATION
+            // =========================
+            var user = await _db.Users
+                .FirstOrDefaultAsync(x => x.Username == username);
+
+            if (user == null || user.PasswordHash != password)
             {
-                ModelState.AddModelError("", "Invalid username or password");
-                return View(model);
+                ViewBag.ReturnUrl = ReturnUrl;
+                ViewBag.Error = "Invalid username or password";
+                return View();
             }
 
-            var user = new IdentityServerUser(model.Username)
+            // =========================
+            // 🔑 IDENTITYSERVER SIGN-IN
+            // =========================
+            var identityUser = new IdentityServerUser(user.EmployeeId)
             {
-                DisplayName = model.Username
+                DisplayName = user.Username
             };
 
-            await HttpContext.SignInAsync(user);
+            // =========================
+            // AUDIT LOG (KEPT)
+            // =========================
+            _db.AuditLogs.Add(new AuditLog
+            {
+                Username = user.Username,
+                Action = "LoginSuccess",
+                Timestamp = DateTime.UtcNow
+            });
+            await _db.SaveChangesAsync();
 
-            return Redirect(model.ReturnUrl);
+            await HttpContext.SignInAsync(identityUser);
+
+            return Redirect(ReturnUrl);
         }
+
 
 
 
