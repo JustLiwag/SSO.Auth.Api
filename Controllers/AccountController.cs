@@ -21,6 +21,7 @@ namespace SSO.Auth.Api.Controllers
             _db = db;
         }
 
+
         // =========================
         // LOGIN
         // =========================
@@ -36,7 +37,6 @@ namespace SSO.Auth.Api.Controllers
             return View();
         }
 
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Login(string username, string password, string ReturnUrl)
@@ -48,43 +48,103 @@ namespace SSO.Auth.Api.Controllers
                 return View();
             }
 
-            // =========================
-            // YOUR EXISTING VALIDATION
-            // =========================
-            var user = await _db.Users
-                .FirstOrDefaultAsync(x => x.Username == username);
+            var context = await _interaction.GetAuthorizationContextAsync(ReturnUrl);
+            string clientApp = context?.Client?.ClientName
+                               ?? context?.Client?.ClientId
+                               ?? "UNKNOWN";
 
-            if (user == null || user.PasswordHash != password)
+            // =========================
+            // 1️⃣ FIND USER FIRST
+            // =========================
+            var user = await _db.Users.FirstOrDefaultAsync(x => x.Username == username);
+
+            if (user == null)
             {
+                _db.AuditLogs.Add(new AuditLog
+                {
+                    Username = username,
+                    Action = "LOGIN_FAILED",
+                    Reason = "User not found",
+                    ClientApp = clientApp,
+                    Timestamp = DateTime.UtcNow
+                });
+                await _db.SaveChangesAsync();
+
                 ViewBag.ReturnUrl = ReturnUrl;
                 ViewBag.Error = "Invalid username or password";
                 return View();
             }
 
             // =========================
-            // 🔑 IDENTITYSERVER SIGN-IN
+            // 2️⃣ PASSWORD CHECK
+            // =========================
+            if (user.PasswordHash != password)
+            {
+                _db.AuditLogs.Add(new AuditLog
+                {
+                    Username = user.Username,
+                    Action = "LOGIN_FAILED",
+                    Reason = "Invalid password",
+                    ClientApp = clientApp,
+                    Timestamp = DateTime.UtcNow
+                });
+                await _db.SaveChangesAsync();
+
+                ViewBag.ReturnUrl = ReturnUrl;
+                ViewBag.Error = "Invalid username or password";
+                return View();
+            }
+
+            // =========================
+            // 3️⃣ STATUS CHECK
+            // =========================
+            var userStatus = await _db.PersonnelDivisionDetails
+                .FirstOrDefaultAsync(x => x.employee_id == user.EmployeeId);
+
+            if (userStatus == null ||
+                userStatus.division_name == "INACTIVE" ||
+                userStatus.separation_date != null)
+            {
+                _db.AuditLogs.Add(new AuditLog
+                {
+                    Username = user.Username,
+                    Action = "LOGIN_FAILED",
+                    Reason = "Employee separated or inactive",
+                    ClientApp = clientApp,
+                    Timestamp = DateTime.UtcNow
+                });
+                await _db.SaveChangesAsync();
+
+                ViewBag.ReturnUrl = ReturnUrl;
+                ViewBag.Error = "Employee is inactive or separated";
+                return View();
+            }
+
+            // =========================
+            // 4️⃣ IDENTITYSERVER LOGIN
             // =========================
             var identityUser = new IdentityServerUser(user.EmployeeId)
             {
                 DisplayName = user.Username
             };
 
+            await HttpContext.SignInAsync(identityUser);
+
             // =========================
-            // AUDIT LOG (KEPT)
+            // 5️⃣ SUCCESS AUDIT
             // =========================
             _db.AuditLogs.Add(new AuditLog
             {
                 Username = user.Username,
-                Action = "LoginSuccess",
+                Action = "LOGIN",
+                Reason = "Successful login",
+                ClientApp = clientApp,
                 Timestamp = DateTime.UtcNow
             });
             await _db.SaveChangesAsync();
 
-            await HttpContext.SignInAsync(identityUser);
-
             return Redirect(ReturnUrl);
         }
-
 
 
 
@@ -96,10 +156,27 @@ namespace SSO.Auth.Api.Controllers
         {
             var logoutContext = await _interaction.GetLogoutContextAsync(logoutId);
 
+            string clientApp =
+                logoutContext?.ClientName
+                ?? logoutContext?.ClientId
+                ?? "UNKNOWN";
+
             if (User?.Identity?.IsAuthenticated == true)
             {
                 await HttpContext.SignOutAsync();
             }
+
+
+            _db.AuditLogs.Add(new AuditLog
+            {
+                Username = User.Identity?.Name,
+                Action = "LOGOUT",
+                Reason = "User Sign Out",
+                ClientApp = clientApp,
+                Timestamp = DateTime.Now
+            });
+            await _db.SaveChangesAsync();
+
 
             return Redirect(logoutContext?.PostLogoutRedirectUri ?? "/");
         }
