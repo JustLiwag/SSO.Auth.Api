@@ -66,7 +66,7 @@ namespace SSO.Auth.Api.Controllers
                     Action = "LOGIN_FAILED",
                     Reason = "User not found",
                     ClientApp = clientApp,
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = DateTime.Now
                 });
                 await _db.SaveChangesAsync();
 
@@ -86,7 +86,7 @@ namespace SSO.Auth.Api.Controllers
                     Action = "LOGIN_FAILED",
                     Reason = "Invalid password",
                     ClientApp = clientApp,
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = DateTime.Now
                 });
                 await _db.SaveChangesAsync();
 
@@ -111,7 +111,7 @@ namespace SSO.Auth.Api.Controllers
                     Action = "LOGIN_FAILED",
                     Reason = "Employee separated or inactive",
                     ClientApp = clientApp,
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = DateTime.Now
                 });
                 await _db.SaveChangesAsync();
 
@@ -139,7 +139,7 @@ namespace SSO.Auth.Api.Controllers
                 Action = "LOGIN",
                 Reason = "Successful login",
                 ClientApp = clientApp,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.Now
             });
             await _db.SaveChangesAsync();
 
@@ -154,22 +154,27 @@ namespace SSO.Auth.Api.Controllers
         [HttpGet]
         public async Task<IActionResult> Logout(string logoutId)
         {
+            
             var logoutContext = await _interaction.GetLogoutContextAsync(logoutId);
 
             string clientApp =
                 logoutContext?.ClientName
                 ?? logoutContext?.ClientId
                 ?? "UNKNOWN";
+            var username = User?.FindFirst("sub")?.Value ?? "UNKNOWN";
 
             if (User?.Identity?.IsAuthenticated == true)
             {
-                await HttpContext.SignOutAsync();
+                //await HttpContext.SignOutAsync();
+                // Sign out of IdentityServer session
+                //await HttpContext.SignOutAsync(IdentityServerConstants.DefaultCookieAuthenticationScheme);
             }
 
+            await HttpContext.SignOutAsync();
 
             _db.AuditLogs.Add(new AuditLog
             {
-                Username = User.Identity?.Name,
+                Username = username,
                 Action = "LOGOUT",
                 Reason = "User Sign Out",
                 ClientApp = clientApp,
